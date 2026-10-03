@@ -20,10 +20,14 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * Adaptador de Remotive (https://remotive.com/api-documentation), solo ofertas de desarrollo de software.
+ * Adaptador de Remotive (https://remotive.com/api-documentation), solo ofertas de categorías técnicas.
  * Remotive pide no consultar su API más de unas 4 veces al día: de eso se encarga JobServiceImpl.
+ * El feed público devuelve pocas ofertas por consulta; el volumen sale de acumularlas día a día.
  *
  * Campos usados de cada oferta: id, url, title, company_name, category, tags,
  * publication_date, candidate_required_location y description (HTML).
@@ -34,23 +38,31 @@ public class RemotiveJobSource implements JobPostingSource {
 
     private static final Logger log = LoggerFactory.getLogger(RemotiveJobSource.class);
     static final String NAME = "Remotive";
-    /** Slug según GET /api/remote-jobs/categories. */
+    /** Slug según GET /api/remote-jobs/categories. Se envía por si el feed vuelve a respetarlo. */
     static final String CATEGORY_SLUG = "software-development";
-    /** El feed público no siempre respeta el filtro: se vuelve a filtrar por el nombre de la categoría. */
-    static final String CATEGORY_NAME = "Software Development";
 
     private final JobSourceHttpClient http;
     private final URI uri;
+    /**
+     * Nombres de categoría aceptados, en minúsculas. El feed público ignora el filtro de la URL y
+     * mezcla categorías, así que se filtra aquí. Vacío = se aceptan todas.
+     */
+    private final Set<String> acceptedCategories;
     private final Clock clock;
 
     public RemotiveJobSource(JobSourceHttpClient http,
                              @Value("${jobs.remotive.base-url}") String baseUrl,
+                             @Value("${jobs.remotive.categories}") List<String> acceptedCategories,
                              Clock clock) {
         this.http = http;
         this.uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path("/remote-jobs")
                 .queryParam("category", CATEGORY_SLUG)
                 .build().toUri();
+        this.acceptedCategories = acceptedCategories.stream()
+                .map(c -> c.strip().toLowerCase(Locale.ROOT))
+                .filter(c -> !c.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
         this.clock = clock;
     }
 
@@ -70,7 +82,7 @@ public class RemotiveJobSource implements JobPostingSource {
         int otherCategory = 0;
         int incomplete = 0;
         for (JsonNode job : jobs) {
-            if (!CATEGORY_NAME.equalsIgnoreCase(JobJson.text(job, "category"))) {
+            if (!isAccepted(JobJson.text(job, "category"))) {
                 otherCategory++;
                 continue;
             }
@@ -99,6 +111,13 @@ public class RemotiveJobSource implements JobPostingSource {
                     NAME, otherCategory, incomplete);
         }
         return postings;
+    }
+
+    private boolean isAccepted(String category) {
+        if (acceptedCategories.isEmpty()) {
+            return true;
+        }
+        return category != null && acceptedCategories.contains(category.toLowerCase(Locale.ROOT));
     }
 
     /** Remotive manda "2026-09-30T13:15:26", sin zona: se interpreta en UTC. */

@@ -38,9 +38,17 @@ class RemotiveJobSourceTest {
              ]}
             """;
 
+    /** Igual que jobs.remotive.categories en application.properties. */
+    private static final List<String> CATEGORIES = List.of("Software Development", "Artificial Intelligence",
+            "Data and Analytics", "Devops", "Quality Assurance", "Information Technology");
+
     private static RemotiveJobSource source(FakeJobServer server, Duration timeout) {
+        return source(server.baseUrl(), timeout, CATEGORIES);
+    }
+
+    private static RemotiveJobSource source(String baseUrl, Duration timeout, List<String> categories) {
         return new RemotiveJobSource(new JobSourceHttpClient(RestClient.builder(), timeout),
-                server.baseUrl(), Clock.fixed(NOW, ZoneOffset.UTC));
+                baseUrl, categories, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private static RemotiveJobSource source(FakeJobServer server) {
@@ -143,12 +151,55 @@ class RemotiveJobSourceTest {
         try (var server = new FakeJobServer(uri -> FakeJobServer.Response.json(JOBS))) {
             baseUrl = server.baseUrl();
         }
-        var source = new RemotiveJobSource(new JobSourceHttpClient(RestClient.builder(), Duration.ofSeconds(2)),
-                baseUrl, Clock.fixed(NOW, ZoneOffset.UTC));
+        var source = source(baseUrl, Duration.ofSeconds(2), CATEGORIES);
 
         assertThatThrownBy(source::fetch)
                 .isInstanceOf(JobSourceUnavailableException.class)
                 .hasMessageContaining("No se pudo conectar con Remotive");
+    }
+
+    // ---------- Filtro de categorías ----------
+
+    /** Una oferta por categoría, con los nombres reales de GET /api/remote-jobs/categories. */
+    private static final String MIXED_CATEGORIES = """
+            {"job-count": 10, "jobs": [
+              {"id": 1, "title": "Backend", "category": "Software Development"},
+              {"id": 2, "title": "AI", "category": "Artificial Intelligence"},
+              {"id": 3, "title": "Analyst", "category": "Data and Analytics"},
+              {"id": 4, "title": "SRE", "category": "Devops"},
+              {"id": 5, "title": "QA", "category": "Quality Assurance"},
+              {"id": 6, "title": "Sysadmin", "category": "Information Technology"},
+              {"id": 7, "title": "Copywriter", "category": "Writing"},
+              {"id": 8, "title": "Designer", "category": "Design"},
+              {"id": 9, "title": "Support", "category": "Customer Service"},
+              {"id": 10, "title": "Sin categoría"}
+            ]}
+            """;
+
+    @Test
+    void keepsOnlyConfiguredTechnicalCategories() throws IOException {
+        try (var server = new FakeJobServer(uri -> FakeJobServer.Response.json(MIXED_CATEGORIES))) {
+            assertThat(source(server).fetch()).extracting(JobPosting::externalId)
+                    .containsExactly("1", "2", "3", "4", "5", "6");
+            // El slug de la URL no cambia: solo se filtra al recibir.
+            assertThat(server.requests.get(0).getQuery()).isEqualTo("category=software-development");
+        }
+    }
+
+    @Test
+    void categoryMatchIgnoresCaseAndSpaces() throws IOException {
+        try (var server = new FakeJobServer(uri -> FakeJobServer.Response.json(MIXED_CATEGORIES))) {
+            var source = source(server.baseUrl(), Duration.ofSeconds(5), List.of(" DevOps ", "quality assurance"));
+            assertThat(source.fetch()).extracting(JobPosting::externalId).containsExactly("4", "5");
+        }
+    }
+
+    @Test
+    void emptyCategoryListAcceptsEverything() throws IOException {
+        try (var server = new FakeJobServer(uri -> FakeJobServer.Response.json(MIXED_CATEGORIES))) {
+            var source = source(server.baseUrl(), Duration.ofSeconds(5), List.of());
+            assertThat(source.fetch()).hasSize(10);
+        }
     }
 
     @Test
