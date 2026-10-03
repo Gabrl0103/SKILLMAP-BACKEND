@@ -1,6 +1,7 @@
 package com.skillmap.api.application.service.impl;
 
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
+import com.skillmap.api.domain.model.DemandSource;
 import com.skillmap.api.domain.model.JobMatch;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.model.SkillStatus;
@@ -16,10 +17,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class JobAnalyzerServiceImplTest {
 
     private static final List<Skill> CATALOG = List.of(
-            new Skill(1L, "React", "Frontend", 95, SkillStatus.MASTERED),
-            new Skill(2L, "TypeScript", "Frontend", 88, SkillStatus.IN_PROGRESS),
-            new Skill(3L, "Next.js", "Frontend", 71, SkillStatus.PENDING),
-            new Skill(4L, "SQL", "Datos", 90, SkillStatus.MASTERED));
+            new Skill(1L, "React", "Frontend", 95, SkillStatus.MASTERED, DemandSource.SEEDED),
+            new Skill(2L, "TypeScript", "Frontend", 88, SkillStatus.IN_PROGRESS, DemandSource.SEEDED),
+            new Skill(3L, "Next.js", "Frontend", 71, SkillStatus.PENDING, DemandSource.SEEDED),
+            new Skill(4L, "SQL", "Datos", 90, SkillStatus.MASTERED, DemandSource.SEEDED));
 
     private final SkillRepository repository = new SkillRepository() {
         @Override public List<Skill> findAll() { return CATALOG; }

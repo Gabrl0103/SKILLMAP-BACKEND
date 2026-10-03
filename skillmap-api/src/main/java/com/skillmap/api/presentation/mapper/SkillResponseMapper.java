@@ -14,6 +14,7 @@ public final class SkillResponseMapper {
                 skill.getName(),
                 skill.getCategory(),
                 skill.getDemandPercentage(),
+                skill.getDemandSource().name(),
                 skill.getStatus().name()
         );
     }

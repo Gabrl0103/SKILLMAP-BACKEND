@@ -10,6 +10,7 @@ public record SkillResponse(
         String name,
         String category,
         int demandPercentage,
+        String demandSource,
         String status
 ) {
 }

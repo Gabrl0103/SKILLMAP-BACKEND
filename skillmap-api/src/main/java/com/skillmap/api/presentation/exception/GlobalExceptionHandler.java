@@ -7,6 +7,10 @@ import com.skillmap.api.domain.exception.AiServiceException;
 import com.skillmap.api.domain.exception.AiTimeoutException;
 import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
+import com.skillmap.api.domain.exception.JobSourceException;
+import com.skillmap.api.domain.exception.JobSourceInvalidResponseException;
+import com.skillmap.api.domain.exception.JobSourceRateLimitException;
+import com.skillmap.api.domain.exception.JobSourceUnavailableException;
 import com.skillmap.api.domain.exception.SkillNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Manejo global de excepciones: ningún controlador necesita try/catch propio.
@@ -52,6 +57,12 @@ public class GlobalExceptionHandler {
                 "El cuerpo de la petición no es un JSON válido."));
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(
+                "El parámetro '" + ex.getName() + "' no tiene un valor válido."));
+    }
+
     @ExceptionHandler(AiNotConfiguredException.class)
     public ResponseEntity<ErrorResponse> handleAiNotConfigured(AiNotConfiguredException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorResponse(ex.getMessage()));
@@ -77,6 +88,29 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AiServiceException.class)
     public ResponseEntity<ErrorResponse> handleAiService(AiServiceException ex) {
         log.warn("Fallo del servicio de IA: {}", ex.getMessage(), ex.getCause());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(JobSourceRateLimitException.class)
+    public ResponseEntity<ErrorResponse> handleJobSourceRateLimit(JobSourceRateLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(JobSourceUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleJobSourceUnavailable(JobSourceUnavailableException ex) {
+        log.warn("Fuente de ofertas caída: {}", ex.getMessage(), ex.getCause());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(JobSourceInvalidResponseException.class)
+    public ResponseEntity<ErrorResponse> handleJobSourceInvalidResponse(JobSourceInvalidResponseException ex) {
+        log.warn("Respuesta inválida de una fuente de ofertas: {}", ex.getMessage(), ex.getCause());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(JobSourceException.class)
+    public ResponseEntity<ErrorResponse> handleJobSource(JobSourceException ex) {
+        log.warn("Fallo de una fuente de ofertas: {}", ex.getMessage(), ex.getCause());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ErrorResponse(ex.getMessage()));
     }
 

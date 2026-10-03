@@ -1,5 +1,6 @@
 package com.skillmap.api.domain.factory;
 
+import com.skillmap.api.domain.model.DemandSource;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.model.SkillStatus;
 
@@ -17,13 +18,14 @@ public final class SkillFactory {
     /** Para dar de alta una habilidad nueva, todavía sin id (lo asigna la base de datos). */
     public static Skill createNew(String name, String category, int demandPercentage) {
         validate(name, demandPercentage);
-        return new Skill(null, name, category, demandPercentage, SkillStatus.PENDING);
+        return new Skill(null, name, category, demandPercentage, SkillStatus.PENDING, DemandSource.SEEDED);
     }
 
     /** Para reconstruir una habilidad que ya existe (viene de la base de datos). */
-    public static Skill reconstruct(Long id, String name, String category, int demandPercentage, SkillStatus status) {
+    public static Skill reconstruct(Long id, String name, String category, int demandPercentage, SkillStatus status,
+                                    DemandSource demandSource) {
         validate(name, demandPercentage);
-        return new Skill(id, name, category, demandPercentage, status);
+        return new Skill(id, name, category, demandPercentage, status, demandSource);
     }
 
     private static void validate(String name, int demandPercentage) {

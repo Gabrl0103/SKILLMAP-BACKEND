@@ -1,5 +1,6 @@
 package com.skillmap.api.infrastructure.persistence.entity;
 
+import com.skillmap.api.domain.model.DemandSource;
 import com.skillmap.api.domain.model.SkillStatus;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -29,16 +30,21 @@ public class SkillEntity {
     @Enumerated(EnumType.STRING)
     private SkillStatus status;
 
+    @Enumerated(EnumType.STRING)
+    private DemandSource demandSource;
+
     protected SkillEntity() {
         // Requerido por JPA.
     }
 
-    public SkillEntity(Long id, String name, String category, int demandPercentage, SkillStatus status) {
+    public SkillEntity(Long id, String name, String category, int demandPercentage, SkillStatus status,
+                       DemandSource demandSource) {
         this.id = id;
         this.name = name;
         this.category = category;
         this.demandPercentage = demandPercentage;
         this.status = status;
+        this.demandSource = demandSource;
     }
 
     public Long getId() { return id; }
@@ -46,4 +52,5 @@ public class SkillEntity {
     public String getCategory() { return category; }
     public int getDemandPercentage() { return demandPercentage; }
     public SkillStatus getStatus() { return status; }
+    public DemandSource getDemandSource() { return demandSource; }
 }

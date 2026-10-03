@@ -1,6 +1,7 @@
 package com.skillmap.api.infrastructure.persistence.mapper;
 
 import com.skillmap.api.domain.factory.SkillFactory;
+import com.skillmap.api.domain.model.DemandSource;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.infrastructure.persistence.entity.SkillEntity;
 
@@ -16,7 +17,9 @@ public final class SkillPersistenceMapper {
                 entity.getName(),
                 entity.getCategory(),
                 entity.getDemandPercentage(),
-                entity.getStatus()
+                entity.getStatus(),
+                // Filas anteriores a este campo no lo tienen: su demanda es la cargada a mano.
+                entity.getDemandSource() == null ? DemandSource.SEEDED : entity.getDemandSource()
         );
     }
 
@@ -26,7 +29,8 @@ public final class SkillPersistenceMapper {
                 skill.getName(),
                 skill.getCategory(),
                 skill.getDemandPercentage(),
-                skill.getStatus()
+                skill.getStatus(),
+                skill.getDemandSource()
         );
     }
 }

@@ -2,6 +2,7 @@ package com.skillmap.api.infrastructure.config;
 
 import com.skillmap.api.domain.factory.CareerGoalFactory;
 import com.skillmap.api.domain.factory.SkillFactory;
+import com.skillmap.api.domain.model.DemandSource;
 import com.skillmap.api.domain.model.GoalSkill;
 import com.skillmap.api.domain.model.SkillStatus;
 import com.skillmap.api.domain.repository.CareerGoalRepository;
@@ -83,7 +84,7 @@ public class DataSeeder implements CommandLineRunner {
 
     /** Crea la habilidad con su estado inicial y devuelve el id generado. */
     private Long seed(String name, String category, int demand, SkillStatus status) {
-        var skill = SkillFactory.reconstruct(null, name, category, demand, status);
+        var skill = SkillFactory.reconstruct(null, name, category, demand, status, DemandSource.SEEDED);
         return skillRepository.save(skill).getId();
     }
 }
