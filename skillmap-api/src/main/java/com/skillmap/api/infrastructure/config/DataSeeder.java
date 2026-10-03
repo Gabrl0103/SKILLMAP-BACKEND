@@ -7,14 +7,22 @@ import com.skillmap.api.domain.model.GoalSkill;
 import com.skillmap.api.domain.model.SkillStatus;
 import com.skillmap.api.domain.repository.CareerGoalRepository;
 import com.skillmap.api.domain.repository.SkillRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/** Carga datos de ejemplo al arrancar: habilidades y cinco objetivos laborales. */
+/**
+ * Carga datos de ejemplo al arrancar: habilidades y cinco objetivos laborales.
+ * Solo actúa con la base vacía: la base persiste entre reinicios y no se debe pisar
+ * la demanda calculada con ofertas reales ni el progreso del usuario.
+ */
 @Component
 public class DataSeeder implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
     private final SkillRepository skillRepository;
     private final CareerGoalRepository goalRepository;
@@ -26,7 +34,13 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (!skillRepository.findAll().isEmpty()) {
+        boolean hasSkills = !skillRepository.findAll().isEmpty();
+        boolean hasGoals = !goalRepository.findAll().isEmpty();
+        if (hasSkills || hasGoals) {
+            if (hasSkills != hasGoals) {
+                log.warn("La base tiene {} pero no {}: no se siembra nada para no mezclar datos",
+                        hasSkills ? "habilidades" : "objetivos", hasSkills ? "objetivos" : "habilidades");
+            }
             return;
         }
 

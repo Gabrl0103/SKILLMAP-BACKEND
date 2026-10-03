@@ -2,3 +2,6 @@ target/
 .idea/
 *.iml
 .DS_Store
+
+# Base de datos H2 local (modo archivo): no se sube al repositorio.
+/data/
