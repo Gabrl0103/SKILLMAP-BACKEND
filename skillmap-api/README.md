@@ -29,7 +29,12 @@ Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador po
   `gemini.api.key=...` en `%APPDATA%\SkillMap\config.properties`. Nunca en el repositorio.
 - **Frontend**: se sirve desde `classpath:/static/`. El script de empaquetado lo copia a
   `src/main/resources/static/` (en `.gitignore`).
-- **Cerrar** la app empaquetada: `scripts\stop.bat` (o `stop.bat Otro.exe` si el ejecutable se llama distinto).
+- **Logs**: consola y `%APPDATA%\SkillMap\logs\skillmap.log` (`skillmap.logs-dir`). Rota al pasar de ~5 MB:
+  `skillmap.log`, `skillmap.1.log` y `skillmap.2.log` como mucho. La key de Gemini se tapa (`***`) en todos los logs.
+- **Empaquetar** (Windows, JDK con jpackage): `powershell -ExecutionPolicy Bypass -File scripts\build-app.ps1`
+  genera `dist\SkillMap\SkillMap.exe` y lo prueba con datos temporales.
+- **Cerrar** la app empaquetada: `dist\SkillMap\stop.bat` (o `stop.bat Otro.exe` si el ejecutable se llama distinto).
+  Solo cierra el ejecutable de su misma carpeta.
 
 ## Endpoints (primer corte)
 - `GET  /api/skills` — lista todas las habilidades

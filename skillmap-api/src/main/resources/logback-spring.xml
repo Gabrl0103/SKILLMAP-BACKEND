@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logs en consola y en archivo. La app empaquetada no tiene consola: el archivo es lo único que queda.
+  - Archivo: ${skillmap.logs-dir}/skillmap.log (por defecto %APPDATA%\SkillMap\logs).
+  - Rotación por tamaño: al pasar de ~5 MB, skillmap.log pasa a skillmap.1.log y este a
+    skillmap.2.log; el más antiguo se borra. Como mucho 3 archivos (~15 MB).
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty name="LOG_DIR" source="skillmap.logs-dir" defaultValue="logs"/>
+
+    <!--
+      La key de Gemini nunca debe llegar a un log. El código ya no la registra; esto es la red de
+      seguridad, también para las trazas de excepciones: tapa las keys de Google (AIza + 35
+      caracteres) y el valor de "gemini.api.key=...", "GEMINI_API_KEY=..." o "x-goog-api-key: ...".
+      %nopex evita que logback añada la traza otra vez, sin tapar, al final de la línea.
+    -->
+    <property name="KEY_PATTERN" value="AIza[0-9A-Za-z_-]{35}"/>
+    <property name="KEY_SETTING_PATTERN" value="(?i)(gemini[._]api[._]key|x-goog-api-key)[ ]*[=:][ ]*[^\s,;]+"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%replace(%replace(${CONSOLE_LOG_PATTERN}){'${KEY_PATTERN}', '***'}){'${KEY_SETTING_PATTERN}', '$1=***'}%nopex</pattern>
+            <charset>${CONSOLE_LOG_CHARSET}</charset>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/skillmap.log</file>
+        <encoder>
+            <pattern>%replace(%replace(${FILE_LOG_PATTERN}){'${KEY_PATTERN}', '***'}){'${KEY_SETTING_PATTERN}', '$1=***'}%nopex</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/skillmap.%i.log</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>2</maxIndex>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>5MB</maxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

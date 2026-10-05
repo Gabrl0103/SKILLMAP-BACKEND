@@ -8,3 +8,6 @@ target/
 
 # Frontend: lo copia el script de empaquetado, no se versiona aquí.
 /src/main/resources/static/
+
+# App empaquetada por scripts/build-app.ps1.
+/dist/
