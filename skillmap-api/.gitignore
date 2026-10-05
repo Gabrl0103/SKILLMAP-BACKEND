@@ -5,3 +5,6 @@ target/
 
 # Base de datos H2 local (modo archivo): no se sube al repositorio.
 /data/
+
+# Frontend: lo copia el script de empaquetado, no se versiona aquí.
+/src/main/resources/static/

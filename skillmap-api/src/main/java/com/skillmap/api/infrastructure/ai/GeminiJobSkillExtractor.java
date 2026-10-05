@@ -27,6 +27,7 @@ import org.springframework.web.client.RestClientException;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -132,8 +133,9 @@ public class GeminiJobSkillExtractor implements JobSkillExtractor {
             return cached;
         }
         String apiKey = apiKeyProvider.getApiKey().orElseThrow(() -> new AiNotConfiguredException(
-                "No hay una API key de Gemini configurada. Define la variable de entorno "
-                        + "GEMINI_API_KEY y reinicia el backend."));
+                "No hay una API key de Gemini configurada. Añade la línea gemini.api.key=TU_KEY a "
+                        + apiKeyProvider.getConfigFile().map(Path::toString).orElse("config.properties")
+                        + " o define la variable de entorno GEMINI_API_KEY y reinicia la app."));
 
         List<String> skills = List.copyOf(extractWithFallback(jobDescription, knownSkills, apiKey));
         cache.put(jobDescription, skills);
@@ -272,7 +274,7 @@ public class GeminiJobSkillExtractor implements JobSkillExtractor {
         if (body.contains("API_KEY_INVALID") || status.value() == HttpStatus.UNAUTHORIZED.value()
                 || status.value() == HttpStatus.FORBIDDEN.value()) {
             return new AiServiceException(
-                    "Gemini rechazó la API key. Revisa el valor de GEMINI_API_KEY.");
+                    "Gemini rechazó la API key. Revisa GEMINI_API_KEY o gemini.api.key en config.properties.");
         }
         if (status.value() == HttpStatus.NOT_FOUND.value()) {
             return new AiServiceException(

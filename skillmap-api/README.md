@@ -12,10 +12,24 @@ presentation/    → controladores REST que consumen los 3 clientes
 
 ## Cómo correrlo
 ```
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.arguments=--skillmap.desktop.open-browser=false
 ```
-Base de datos H2 en memoria para desarrollo — no requiere instalar nada.
-Consola en `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:skillmapdb`).
+Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador por defecto).
+
+- **Datos**: H2 en modo archivo en `%APPDATA%\SkillMap\data` (`~/SkillMap/data` fuera de Windows).
+  Se cambia con `--skillmap.home=...` o solo la base con `--skillmap.data-dir=...`.
+  Consola en `/h2-console` (JDBC URL: `jdbc:h2:file:<carpeta de datos>/skillmap`).
+- **Puerto**: 8080; si está ocupado, el siguiente libre (hasta 8089) o uno al azar.
+- **Red**: escucha solo en `127.0.0.1` (no accesible desde la red local); `--server.address=0.0.0.0` para abrirlo.
+- **CORS**: la API acepta el mismo origen y `skillmap.cors.allowed-origins`
+  (por defecto Live Server: `http://localhost:5500`, `http://127.0.0.1:5500`).
+- **Una sola instancia** por carpeta de datos: un segundo arranque abre la ventana de la primera y termina.
+- **Primer arranque**: sin ofertas guardadas, se sincroniza en segundo plano (`jobs.sync.on-first-start`).
+- **API key de Gemini**: variable de entorno `GEMINI_API_KEY` o, si no existe, la línea
+  `gemini.api.key=...` en `%APPDATA%\SkillMap\config.properties`. Nunca en el repositorio.
+- **Frontend**: se sirve desde `classpath:/static/`. El script de empaquetado lo copia a
+  `src/main/resources/static/` (en `.gitignore`).
+- **Cerrar** la app empaquetada: `scripts\stop.bat` (o `stop.bat Otro.exe` si el ejecutable se llama distinto).
 
 ## Endpoints (primer corte)
 - `GET  /api/skills` — lista todas las habilidades
