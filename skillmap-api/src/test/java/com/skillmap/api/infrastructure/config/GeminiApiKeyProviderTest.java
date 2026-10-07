@@ -1,5 +1,6 @@
 package com.skillmap.api.infrastructure.config;
 
+import com.skillmap.api.domain.model.GeminiApiKey;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.env.MockEnvironment;
@@ -21,21 +22,21 @@ class GeminiApiKeyProviderTest {
         var env = envWithConfigFile("gemini.api.key=from-file\n");
         env.setProperty("GEMINI_API_KEY", "  from-env  ");
 
-        assertThat(new GeminiApiKeyProvider(env).getApiKey()).contains("from-env");
+        assertThat(provider(env).getApiKey()).contains("from-env");
     }
 
     @Test
     void fallsBackToConfigFile() throws IOException {
         var env = envWithConfigFile("# ajustes\ngemini.api.key = from-file \n");
 
-        assertThat(new GeminiApiKeyProvider(env).getApiKey()).contains("from-file");
+        assertThat(provider(env).getApiKey()).contains("from-file");
     }
 
     @Test
     void ignoresByteOrderMarkFromNotepad() throws IOException {
         var env = envWithConfigFile("﻿gemini.api.key=from-file\n");
 
-        assertThat(new GeminiApiKeyProvider(env).getApiKey()).contains("from-file");
+        assertThat(provider(env).getApiKey()).contains("from-file");
     }
 
     @Test
@@ -43,13 +44,12 @@ class GeminiApiKeyProviderTest {
         var env = envWithConfigFile("gemini.api.key=from-file\n");
         env.setProperty("GEMINI_API_KEY", "   ");
 
-        assertThat(new GeminiApiKeyProvider(env).getApiKey()).contains("from-file");
+        assertThat(provider(env).getApiKey()).contains("from-file");
     }
 
     @Test
     void readsFileChangesWithoutRestart() throws IOException {
-        var env = envWithConfigFile("");
-        var provider = new GeminiApiKeyProvider(env);
+        var provider = provider(envWithConfigFile(""));
         assertThat(provider.getApiKey()).isEmpty();
 
         Files.writeString(dir.resolve("config.properties"), "gemini.api.key=added-later\n");
@@ -58,25 +58,40 @@ class GeminiApiKeyProviderTest {
     }
 
     @Test
-    void emptyWhenNoVariableAndNoFile() {
-        var env = new MockEnvironment();
-        env.setProperty("skillmap.config-file", dir.resolve("missing.properties").toString());
+    void readsKeySavedFromSettingsWithoutRestart() throws IOException {
+        var env = envWithConfigFile("gemini.api.key=old-key-0123456789abcdef\n");
+        var store = new PropertiesFileGeminiKeyStore(env, dir);
+        var provider = new GeminiApiKeyProvider(store);
+        assertThat(provider.getApiKey()).contains("old-key-0123456789abcdef");
 
-        assertThat(new GeminiApiKeyProvider(env).getApiKey()).isEmpty();
+        store.save(GeminiApiKey.of("new-key-0123456789abcdef"));
+
+        assertThat(provider.getApiKey()).contains("new-key-0123456789abcdef");
+    }
+
+    @Test
+    void emptyWhenNoVariableAndNoFile() {
+        assertThat(provider(new MockEnvironment()).getApiKey()).isEmpty();
     }
 
     @Test
     void emptyWhenFileHasNoKey() throws IOException {
         var env = envWithConfigFile("otra.cosa=1\ngemini.api.key=\n");
 
-        assertThat(new GeminiApiKeyProvider(env).getApiKey()).isEmpty();
+        assertThat(provider(env).getApiKey()).isEmpty();
+    }
+
+    @Test
+    void configFileIsInsideConfigDir() {
+        assertThat(provider(new MockEnvironment()).getConfigFile()).contains(dir.resolve("config.properties"));
+    }
+
+    private GeminiApiKeyProvider provider(MockEnvironment env) {
+        return new GeminiApiKeyProvider(new PropertiesFileGeminiKeyStore(env, dir));
     }
 
     private MockEnvironment envWithConfigFile(String content) throws IOException {
-        Path file = dir.resolve("config.properties");
-        Files.writeString(file, content, StandardCharsets.UTF_8);
-        var env = new MockEnvironment();
-        env.setProperty("skillmap.config-file", file.toString());
-        return env;
+        Files.writeString(dir.resolve("config.properties"), content, StandardCharsets.UTF_8);
+        return new MockEnvironment();
     }
 }

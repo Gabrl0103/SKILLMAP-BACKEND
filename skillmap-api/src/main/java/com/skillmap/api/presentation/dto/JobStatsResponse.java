@@ -3,13 +3,17 @@ package com.skillmap.api.presentation.dto;
 import java.time.Instant;
 import java.util.List;
 
-/** GET /api/jobs/stats: total de ofertas, desglose por fuente y última sincronización. */
+/**
+ * GET /api/jobs/stats: total de ofertas, desglose por fuente y última sincronización.
+ * Las fechas son instantes UTC en ISO-8601 (ej. 2026-10-02T12:00:00Z); null si nunca se sincronizó.
+ */
 public record JobStatsResponse(
         long totalJobs,
         List<SourceStats> sources,
         Instant lastSyncAt
 ) {
 
-    public record SourceStats(String name, long jobs, Instant lastSyncAt) {
+    /** nextSyncAt: desde cuándo se puede volver a sincronizar la fuente. */
+    public record SourceStats(String name, long jobs, Instant lastSyncAt, Instant nextSyncAt) {
     }
 }

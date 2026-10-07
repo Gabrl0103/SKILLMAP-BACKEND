@@ -110,6 +110,44 @@ class JobServiceImplTest {
     }
 
     @Test
+    void skippedSourceSaysWhenItCanSyncAgain() {
+        syncState.saveLastSync("Remotive", NOW.minus(Duration.ofHours(4)).minusSeconds(30));
+        FakeSource remotive = new FakeSource("Remotive", List::of);
+
+        SourceSyncResult result = service(remotive).sync().sources().get(0);
+
+        assertThat(result.nextSyncAt()).isEqualTo(NOW.plus(Duration.ofHours(2)).minusSeconds(30));
+        // 1 h 59 min 30 s: se redondea hacia arriba.
+        assertThat(result.minutesUntilNextSync()).isEqualTo(120);
+        assertThat(result.message()).contains("faltan 120 minutos");
+    }
+
+    @Test
+    void syncedSourceCanSyncAgainAfterTheInterval() {
+        FakeSource remotive = new FakeSource("Remotive", () -> postings("Remotive", 1, "Java"));
+
+        SourceSyncResult result = service(remotive).sync().sources().get(0);
+
+        assertThat(result.status()).isEqualTo(SourceSyncStatus.SYNCED);
+        assertThat(result.nextSyncAt()).isEqualTo(NOW.plus(MIN_INTERVAL));
+        assertThat(result.minutesUntilNextSync()).isEqualTo(MIN_INTERVAL.toMinutes());
+    }
+
+    @Test
+    void failedSourceWithoutPreviousSyncCanRetryNow() {
+        FakeSource remotive = new FakeSource("Remotive", () -> {
+            throw new JobSourceUnavailableException("Remotive no responde");
+        });
+        FakeSource arbeitnow = new FakeSource("Arbeitnow", () -> postings("Arbeitnow", 1, "Java"));
+
+        SourceSyncResult failed = service(remotive, arbeitnow).sync().sources().get(0);
+
+        assertThat(failed.status()).isEqualTo(SourceSyncStatus.FAILED);
+        assertThat(failed.nextSyncAt()).isNull();
+        assertThat(failed.minutesUntilNextSync()).isZero();
+    }
+
+    @Test
     void secondManualSyncRightAfterFirstIsSkipped() {
         FakeSource remotive = new FakeSource("Remotive", () -> postings("Remotive", 3, "Java"));
         JobServiceImpl service = service(remotive);
@@ -276,8 +314,8 @@ class JobServiceImplTest {
 
         assertThat(stats.totalPostings()).isEqualTo(3);
         assertThat(stats.sources()).containsExactly(
-                new JobStats.SourceStats("Remotive", 0, NOW.minus(Duration.ofHours(1))),
-                new JobStats.SourceStats("Arbeitnow", 3, NOW.minus(Duration.ofHours(2))));
+                new JobStats.SourceStats("Remotive", 0, NOW.minus(Duration.ofHours(1)), NOW.plus(Duration.ofHours(5))),
+                new JobStats.SourceStats("Arbeitnow", 3, NOW.minus(Duration.ofHours(2)), NOW.plus(Duration.ofHours(4))));
         assertThat(stats.lastSyncAt()).isEqualTo(NOW.minus(Duration.ofHours(1)));
     }
 

@@ -133,7 +133,8 @@ public class GeminiJobSkillExtractor implements JobSkillExtractor {
             return cached;
         }
         String apiKey = apiKeyProvider.getApiKey().orElseThrow(() -> new AiNotConfiguredException(
-                "No hay una API key de Gemini configurada. Añade la línea gemini.api.key=TU_KEY a "
+                "No hay una API key de Gemini configurada. Guárdala en Ajustes, añade la línea "
+                        + "gemini.api.key=TU_KEY a "
                         + apiKeyProvider.getConfigFile().map(Path::toString).orElse("config.properties")
                         + " o define la variable de entorno GEMINI_API_KEY y reinicia la app."));
 

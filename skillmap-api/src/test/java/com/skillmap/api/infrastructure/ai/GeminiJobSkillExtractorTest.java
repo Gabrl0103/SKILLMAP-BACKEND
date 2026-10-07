@@ -8,16 +8,19 @@ import com.skillmap.api.domain.exception.AiRateLimitException;
 import com.skillmap.api.domain.exception.AiServiceException;
 import com.skillmap.api.domain.exception.AiTimeoutException;
 import com.skillmap.api.infrastructure.config.GeminiApiKeyProvider;
+import com.skillmap.api.infrastructure.config.PropertiesFileGeminiKeyStore;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Deque;
 import java.util.List;
@@ -30,6 +33,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Prueba el adaptador contra un servidor HTTP local que imita a Gemini. */
 class GeminiJobSkillExtractorTest {
+
+    /** Carpeta de config.properties vacía: la key solo sale de la variable de entorno simulada. */
+    @TempDir
+    Path configDir;
 
     private static final String SKILLS_OK = """
             {"candidates":[{"content":{"parts":[{"text":"{\\"skills\\":[\\"Java\\"]}"}]}}]}
@@ -103,7 +110,7 @@ class GeminiJobSkillExtractorTest {
         if (apiKey != null) {
             env.setProperty("GEMINI_API_KEY", apiKey);
         }
-        return new GeminiJobSkillExtractor(RestClient.builder(), new GeminiApiKeyProvider(env), new ObjectMapper(),
+        return new GeminiJobSkillExtractor(RestClient.builder(), new GeminiApiKeyProvider(new PropertiesFileGeminiKeyStore(env, configDir)), new ObjectMapper(),
                 "http://127.0.0.1:" + server.getAddress().getPort() + "/v1beta",
                 "gemini-test-model", "gemini-fallback-model", attemptTimeout, totalTimeout, retryDelay);
     }
