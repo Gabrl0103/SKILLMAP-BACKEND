@@ -4,6 +4,7 @@ import com.skillmap.api.application.service.SkillService;
 import com.skillmap.api.presentation.filter.AuthenticationFilter;
 import com.skillmap.api.presentation.dto.SkillResponse;
 import com.skillmap.api.presentation.mapper.SkillResponseMapper;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,5 +49,12 @@ public class SkillController {
     public SkillResponse markAsMastered(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
                                         @PathVariable Long id) {
         return SkillResponseMapper.toResponse(skillService.markSkillAsMastered(userId, id));
+    }
+
+    /** Quita la marca de dominada (solo para este usuario). Idempotente: si ya estaba pendiente, responde igual. */
+    @DeleteMapping("/{id}/master")
+    public SkillResponse unmarkAsMastered(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
+                                          @PathVariable Long id) {
+        return SkillResponseMapper.toResponse(skillService.unmarkSkillAsMastered(userId, id));
     }
 }

@@ -14,4 +14,6 @@ public interface SkillService {
     Skill getSkillById(Long userId, Long id);
     /** Solo cambia el progreso de ese usuario. */
     Skill markSkillAsMastered(Long userId, Long id);
+    /** Deshace el marcado: la habilidad vuelve a pendiente para ese usuario. Repetirlo no falla. */
+    Skill unmarkSkillAsMastered(Long userId, Long id);
 }

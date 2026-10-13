@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -94,6 +95,54 @@ class UserProgressTest {
         // Dominarla dos veces no duplica nada.
         mvc.perform(patch("/api/skills/" + reactId + "/master").with(TestAuth.bearer(alice)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void unmasteringASkillOnlyAffectsThatUser() throws Exception {
+        mvc.perform(patch("/api/skills/" + reactId + "/master").with(TestAuth.bearer(alice)));
+        mvc.perform(patch("/api/skills/" + reactId + "/master").with(TestAuth.bearer(bob)));
+
+        mvc.perform(delete("/api/skills/" + reactId + "/master").with(TestAuth.bearer(alice)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.name").value("React"));
+
+        mvc.perform(get("/api/skills/" + reactId).with(TestAuth.bearer(alice)))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+        mvc.perform(get("/api/skills/" + reactId).with(TestAuth.bearer(bob)))
+                .andExpect(jsonPath("$.status").value("MASTERED"));
+    }
+
+    @Test
+    void unmasteringIsIdempotent() throws Exception {
+        mvc.perform(patch("/api/skills/" + reactId + "/master").with(TestAuth.bearer(alice)));
+        mvc.perform(delete("/api/skills/" + reactId + "/master").with(TestAuth.bearer(alice)))
+                .andExpect(status().isOk());
+        mvc.perform(delete("/api/skills/" + reactId + "/master").with(TestAuth.bearer(alice)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+        // Nunca marcada: también responde bien.
+        mvc.perform(delete("/api/skills/" + reactId + "/master").with(TestAuth.bearer(bob)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    void unmasteringAnUnknownSkillIsNotFound() throws Exception {
+        mvc.perform(delete("/api/skills/999999/master").with(TestAuth.bearer(alice)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void unmasteringRequiresSession() throws Exception {
+        mvc.perform(patch("/api/skills/" + reactId + "/master").with(TestAuth.bearer(alice)));
+        mvc.perform(delete("/api/skills/" + reactId + "/master"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/skills/" + reactId + "/master").with(TestAuth.bearer("token-inventado")))
+                .andExpect(status().isUnauthorized());
+        // El intento sin sesión no tocó el progreso.
+        mvc.perform(get("/api/skills/" + reactId).with(TestAuth.bearer(alice)))
+                .andExpect(jsonPath("$.status").value("MASTERED"));
     }
 
     @Test

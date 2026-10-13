@@ -33,4 +33,10 @@ public class UserSkillRepositoryImpl implements UserSkillRepository {
                 .orElse(null);
         jpaRepository.save(new UserSkillEntity(id, userSkill.userId(), userSkill.skillId(), userSkill.status()));
     }
+
+    @Override
+    @Transactional
+    public void delete(Long userId, Long skillId) {
+        jpaRepository.deleteByUserIdAndSkillId(userId, skillId);
+    }
 }

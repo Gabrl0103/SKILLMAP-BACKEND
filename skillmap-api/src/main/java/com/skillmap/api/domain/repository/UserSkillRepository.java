@@ -13,4 +13,7 @@ public interface UserSkillRepository {
 
     /** Crea o actualiza el progreso del usuario en esa habilidad. */
     void save(UserSkill userSkill);
+
+    /** Borra el progreso del usuario en esa habilidad (vuelve a pendiente). Sin progreso guardado no hace nada. */
+    void delete(Long userId, Long skillId);
 }

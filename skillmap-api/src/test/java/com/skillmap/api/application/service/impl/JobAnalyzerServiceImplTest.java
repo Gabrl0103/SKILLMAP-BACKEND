@@ -42,6 +42,7 @@ class JobAnalyzerServiceImplTest {
                     : Map.of();
         }
         @Override public void save(UserSkill userSkill) { }
+        @Override public void delete(Long userId, Long skillId) { }
     };
 
     private JobAnalyzerServiceImpl serviceReturning(String... skills) {

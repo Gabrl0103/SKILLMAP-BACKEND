@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface UserSkillJpaRepository extends JpaRepository<UserSkillEntity, Long> {
     List<UserSkillEntity> findByUserId(Long userId);
     Optional<UserSkillEntity> findByUserIdAndSkillId(Long userId, Long skillId);
+    void deleteByUserIdAndSkillId(Long userId, Long skillId);
 }

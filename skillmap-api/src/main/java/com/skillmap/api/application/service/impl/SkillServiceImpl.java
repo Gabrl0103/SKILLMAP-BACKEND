@@ -57,4 +57,13 @@ public class SkillServiceImpl implements SkillService {
 
         return updated;
     }
+
+    @Override
+    public Skill unmarkSkillAsMastered(Long userId, Long id) {
+        // Primero se busca: una habilidad que no existe da 404 aunque no haya nada que borrar.
+        Skill skill = getSkillById(userId, id);
+        // Sin fila de progreso la habilidad está pendiente (ver UserSkillCatalog): borrarla es deshacer el marcado.
+        userSkillRepository.delete(userId, id);
+        return skill.withStatus(SkillStatus.PENDING);
+    }
 }
