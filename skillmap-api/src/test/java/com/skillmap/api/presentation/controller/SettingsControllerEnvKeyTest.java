@@ -1,5 +1,8 @@
 package com.skillmap.api.presentation.controller;
 
+import com.skillmap.api.support.TestAuth;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,14 +49,23 @@ class SettingsControllerEnvKeyTest {
     Path configDir;
 
     @BeforeEach
-    void reset() throws IOException {
+    void reset() throws Exception {
         Files.createDirectories(configDir);
         Files.deleteIfExists(configDir.resolve("config.properties"));
+
+        token = TestAuth.register(mvc);
+    }
+
+    private String token;
+
+    /** Todas las peticiones con la sesión de un usuario recién registrado. */
+    private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
+        return mvc.perform(request.with(TestAuth.bearer(token)));
     }
 
     @Test
     void reportsEnvironmentAsSource() throws Exception {
-        mvc.perform(get("/api/settings"))
+        perform(get("/api/settings"))
                 .andExpect(jsonPath("$.gemini.configured").value(true))
                 .andExpect(jsonPath("$.gemini.source").value("env"))
                 .andExpect(content().string(not(containsString(ENV_KEY))));
@@ -61,7 +73,7 @@ class SettingsControllerEnvKeyTest {
 
     @Test
     void savesKeyAnywayButWarnsThatVariableWins() throws Exception {
-        mvc.perform(put("/api/settings/gemini-key")
+        perform(put("/api/settings/gemini-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"key\":\"" + FILE_KEY + "\"}"))
                 .andExpect(status().isOk())

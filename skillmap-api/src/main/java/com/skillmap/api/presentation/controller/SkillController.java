@@ -1,11 +1,13 @@
 package com.skillmap.api.presentation.controller;
 
 import com.skillmap.api.application.service.SkillService;
+import com.skillmap.api.presentation.filter.AuthenticationFilter;
 import com.skillmap.api.presentation.dto.SkillResponse;
 import com.skillmap.api.presentation.mapper.SkillResponseMapper;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,19 +32,21 @@ public class SkillController {
     }
 
     @GetMapping
-    public List<SkillResponse> getAllSkills() {
-        return skillService.getAllSkills().stream()
+    public List<SkillResponse> getAllSkills(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId) {
+        return skillService.getAllSkills(userId).stream()
                 .map(SkillResponseMapper::toResponse)
                 .toList();
     }
 
     @GetMapping("/{id}")
-    public SkillResponse getSkillById(@PathVariable Long id) {
-        return SkillResponseMapper.toResponse(skillService.getSkillById(id));
+    public SkillResponse getSkillById(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
+                                      @PathVariable Long id) {
+        return SkillResponseMapper.toResponse(skillService.getSkillById(userId, id));
     }
 
     @PatchMapping("/{id}/master")
-    public SkillResponse markAsMastered(@PathVariable Long id) {
-        return SkillResponseMapper.toResponse(skillService.markSkillAsMastered(id));
+    public SkillResponse markAsMastered(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
+                                        @PathVariable Long id) {
+        return SkillResponseMapper.toResponse(skillService.markSkillAsMastered(userId, id));
     }
 }

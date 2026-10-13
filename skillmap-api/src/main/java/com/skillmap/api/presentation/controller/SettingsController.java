@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Pantalla Ajustes: tema, introducción, animaciones y key de Gemini. Los cuerpos están
  * limitados de tamaño (ver RequestBodySizeFilter) y la key nunca sale en una respuesta.
+ * Los ajustes y la key son de la instalación, no de cada usuario, pero exigen sesión.
+ * TODO versión web: key y sync solo admin.
  */
 @RestController
 @RequestMapping("/api/settings")

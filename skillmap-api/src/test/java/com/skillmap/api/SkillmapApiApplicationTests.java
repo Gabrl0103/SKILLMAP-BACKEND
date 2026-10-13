@@ -1,5 +1,6 @@
 package com.skillmap.api;
 
+import com.skillmap.api.support.TestAuth;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -43,14 +45,16 @@ class SkillmapApiApplicationTests {
     @Test
     void allowsSameOrigin() throws Exception {
         // MockMvc atiende en http://localhost: el frontend servido por la app.
-        mvc.perform(get("/api/skills").header(HttpHeaders.ORIGIN, "http://localhost"))
+        mvc.perform(get("/api/skills").header(HttpHeaders.ORIGIN, "http://localhost")
+                        .with(TestAuth.bearer(TestAuth.register(mvc))))
                 .andExpect(status().isOk());
     }
 
     @Test
     void allowsLiveServerOrigins() throws Exception {
+        String token = TestAuth.register(mvc);
         for (String origin : new String[] {"http://localhost:5500", "http://127.0.0.1:5500"}) {
-            mvc.perform(get("/api/skills").header(HttpHeaders.ORIGIN, origin))
+            mvc.perform(get("/api/skills").header(HttpHeaders.ORIGIN, origin).with(TestAuth.bearer(token)))
                     .andExpect(status().isOk())
                     .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin));
         }
@@ -62,6 +66,26 @@ class SkillmapApiApplicationTests {
                         .header(HttpHeaders.ORIGIN, "http://localhost:5500")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "PATCH"))
                 .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5500"));
+    }
+
+    @Test
+    void preflightAllowsAuthorizationHeaderWithoutToken() throws Exception {
+        mvc.perform(options("/api/skills")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:5500")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization, content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5500"))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+                        containsStringIgnoringCase("authorization")));
+    }
+
+    @Test
+    void unauthorizedResponseKeepsCorsHeadersForAllowedOrigins() throws Exception {
+        // Sin las cabeceras CORS, el frontend en Live Server no podría leer el 401.
+        mvc.perform(get("/api/skills").header(HttpHeaders.ORIGIN, "http://localhost:5500"))
+                .andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5500"));
     }
 

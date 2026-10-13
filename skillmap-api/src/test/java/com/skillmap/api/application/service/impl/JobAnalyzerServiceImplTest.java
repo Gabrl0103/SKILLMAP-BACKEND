@@ -5,10 +5,13 @@ import com.skillmap.api.domain.model.DemandSource;
 import com.skillmap.api.domain.model.JobMatch;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.model.SkillStatus;
+import com.skillmap.api.domain.model.UserSkill;
 import com.skillmap.api.domain.repository.SkillRepository;
+import com.skillmap.api.domain.repository.UserSkillRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,13 +31,36 @@ class JobAnalyzerServiceImplTest {
         @Override public Skill save(Skill skill) { return skill; }
     };
 
+    private static final Long USER = 7L;
+    private static final Long OTHER_USER = 8L;
+
+    /** El estado que cuenta es el del usuario; el de la tabla de habilidades (el del seed) se ignora. */
+    private final UserSkillRepository progress = new UserSkillRepository() {
+        @Override public Map<Long, SkillStatus> findStatusesByUserId(Long userId) {
+            return USER.equals(userId)
+                    ? Map.of(1L, SkillStatus.MASTERED, 2L, SkillStatus.IN_PROGRESS, 4L, SkillStatus.MASTERED)
+                    : Map.of();
+        }
+        @Override public void save(UserSkill userSkill) { }
+    };
+
     private JobAnalyzerServiceImpl serviceReturning(String... skills) {
-        return new JobAnalyzerServiceImpl((description, known) -> List.of(skills), repository);
+        return new JobAnalyzerServiceImpl((description, known) -> List.of(skills),
+                new UserSkillCatalog(repository, progress));
+    }
+
+    @Test
+    void usesTheProgressOfTheGivenUser() {
+        JobMatch match = serviceReturning("React", "SQL").analyze(OTHER_USER, "oferta");
+
+        assertThat(match.mastered()).isEmpty();
+        assertThat(match.missing()).containsExactly("React", "SQL");
+        assertThat(match.matchPercentage()).isZero();
     }
 
     @Test
     void classifiesCaseInsensitivelyAndUsesCatalogNames() {
-        JobMatch match = serviceReturning("react", "TYPESCRIPT", "Next.js", "GraphQL").analyze("oferta");
+        JobMatch match = serviceReturning("react", "TYPESCRIPT", "Next.js", "GraphQL").analyze(USER, "oferta");
 
         assertThat(match.mastered()).containsExactly("React");
         assertThat(match.inProgress()).containsExactly("TypeScript");
@@ -45,7 +71,7 @@ class JobAnalyzerServiceImplTest {
 
     @Test
     void ignoresDuplicatesFromExtractor() {
-        JobMatch match = serviceReturning("SQL", "sql", "React").analyze("oferta");
+        JobMatch match = serviceReturning("SQL", "sql", "React").analyze(USER, "oferta");
 
         assertThat(match.mastered()).containsExactly("SQL", "React");
         assertThat(match.matchPercentage()).isEqualTo(100);
@@ -53,7 +79,7 @@ class JobAnalyzerServiceImplTest {
 
     @Test
     void returnsZeroWhenNoSkillsDetected() {
-        JobMatch match = serviceReturning().analyze("Buscamos persona proactiva");
+        JobMatch match = serviceReturning().analyze(USER, "Buscamos persona proactiva");
 
         assertThat(match.matchPercentage()).isZero();
         assertThat(match.mastered()).isEmpty();
@@ -62,21 +88,21 @@ class JobAnalyzerServiceImplTest {
 
     @Test
     void rejectsBlankDescription() {
-        assertThatThrownBy(() -> serviceReturning("React").analyze("   "))
+        assertThatThrownBy(() -> serviceReturning("React").analyze(USER, "   "))
                 .isInstanceOf(InvalidJobDescriptionException.class)
                 .hasMessageContaining("vacía");
     }
 
     @Test
     void rejectsNullDescription() {
-        assertThatThrownBy(() -> serviceReturning("React").analyze(null))
+        assertThatThrownBy(() -> serviceReturning("React").analyze(USER, null))
                 .isInstanceOf(InvalidJobDescriptionException.class);
     }
 
     @Test
     void rejectsDescriptionOverLimit() {
         String tooLong = "a".repeat(JobAnalyzerServiceImpl.MAX_DESCRIPTION_LENGTH + 1);
-        assertThatThrownBy(() -> serviceReturning("React").analyze(tooLong))
+        assertThatThrownBy(() -> serviceReturning("React").analyze(USER, tooLong))
                 .isInstanceOf(InvalidJobDescriptionException.class)
                 .hasMessageContaining("8.000");
     }
@@ -84,6 +110,6 @@ class JobAnalyzerServiceImplTest {
     @Test
     void acceptsDescriptionAtLimit() {
         String atLimit = "a".repeat(JobAnalyzerServiceImpl.MAX_DESCRIPTION_LENGTH);
-        assertThat(serviceReturning("React").analyze(atLimit).matchPercentage()).isEqualTo(100);
+        assertThat(serviceReturning("React").analyze(USER, atLimit).matchPercentage()).isEqualTo(100);
     }
 }

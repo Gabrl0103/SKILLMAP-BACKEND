@@ -3,5 +3,5 @@ package com.skillmap.api.application.service;
 import com.skillmap.api.domain.model.JobMatch;
 
 public interface JobAnalyzerService {
-    JobMatch analyze(String jobDescription);
+    JobMatch analyze(Long userId, String jobDescription);
 }

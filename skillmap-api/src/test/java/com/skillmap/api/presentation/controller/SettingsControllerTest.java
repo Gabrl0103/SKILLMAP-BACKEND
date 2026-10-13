@@ -1,6 +1,8 @@
 package com.skillmap.api.presentation.controller;
 
 import com.skillmap.api.infrastructure.persistence.AppSettingJpaRepository;
+import com.skillmap.api.support.TestAuth;
+import org.springframework.test.web.servlet.ResultActions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,17 +65,26 @@ class SettingsControllerTest {
     Path configDir;
 
     @BeforeEach
-    void reset() throws IOException {
+    void reset() throws Exception {
         settingsTable.deleteAll();
         Files.createDirectories(configDir);
         Files.deleteIfExists(configFile());
+
+        token = TestAuth.register(mvc);
+    }
+
+    private String token;
+
+    /** Todas las peticiones con la sesión de un usuario recién registrado. */
+    private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
+        return mvc.perform(request.with(TestAuth.bearer(token)));
     }
 
     // ---------- GET / PATCH ----------
 
     @Test
     void returnsDefaults() throws Exception {
-        mvc.perform(get("/api/settings"))
+        perform(get("/api/settings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.theme").value("light"))
                 .andExpect(jsonPath("$.showIntro").value(true))
@@ -84,18 +95,18 @@ class SettingsControllerTest {
 
     @Test
     void patchUpdatesOnlyGivenFieldsAndIgnoresUnknownOnes() throws Exception {
-        mvc.perform(json(patch("/api/settings"), "{\"theme\":\"dark\",\"desconocido\":42}"))
+        perform(json(patch("/api/settings"), "{\"theme\":\"dark\",\"desconocido\":42}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.theme").value("dark"))
                 .andExpect(jsonPath("$.showIntro").value(true))
                 .andExpect(jsonPath("$.reduceMotion").value(false))
                 .andExpect(jsonPath("$.desconocido").doesNotExist());
 
-        mvc.perform(json(patch("/api/settings"), "{\"reduceMotion\":true,\"showIntro\":false}"))
+        perform(json(patch("/api/settings"), "{\"reduceMotion\":true,\"showIntro\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.theme").value("dark"));
 
-        mvc.perform(get("/api/settings"))
+        perform(get("/api/settings"))
                 .andExpect(jsonPath("$.theme").value("dark"))
                 .andExpect(jsonPath("$.showIntro").value(false))
                 .andExpect(jsonPath("$.reduceMotion").value(true));
@@ -103,27 +114,27 @@ class SettingsControllerTest {
 
     @Test
     void patchRejectsInvalidThemeWithClearMessage() throws Exception {
-        mvc.perform(json(patch("/api/settings"), "{\"theme\":\"purple\",\"reduceMotion\":true}"))
+        perform(json(patch("/api/settings"), "{\"theme\":\"purple\",\"reduceMotion\":true}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("El tema no es válido. Valores permitidos: light, dark."))
                 .andExpect(content().string(not(containsString("purple"))));
 
         // Nada se aplicó a medias.
-        mvc.perform(get("/api/settings"))
+        perform(get("/api/settings"))
                 .andExpect(jsonPath("$.theme").value("light"))
                 .andExpect(jsonPath("$.reduceMotion").value(false));
     }
 
     @Test
     void patchRejectsWrongTypeNamingTheField() throws Exception {
-        mvc.perform(json(patch("/api/settings"), "{\"showIntro\":{\"a\":1}}"))
+        perform(json(patch("/api/settings"), "{\"showIntro\":{\"a\":1}}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("El campo 'showIntro' no tiene un valor válido."));
     }
 
     @Test
     void patchWithoutBodyIsBadRequest() throws Exception {
-        mvc.perform(patch("/api/settings").contentType(MediaType.APPLICATION_JSON))
+        perform(patch("/api/settings").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
     }
 
@@ -133,14 +144,14 @@ class SettingsControllerTest {
     void savesKeyToFileAndAnswersNoContent() throws Exception {
         Files.writeString(configFile(), "# mío\notra.propiedad=1\n", StandardCharsets.UTF_8);
 
-        MvcResult result = mvc.perform(json(put("/api/settings/gemini-key"), keyBody(KEY)))
+        MvcResult result = perform(json(put("/api/settings/gemini-key"), keyBody(KEY)))
                 .andExpect(status().isNoContent())
                 .andReturn();
 
         assertThat(result.getResponse().getContentAsString()).isEmpty();
         assertThat(Files.readString(configFile(), StandardCharsets.UTF_8))
                 .isEqualTo("# mío\notra.propiedad=1\ngemini.api.key=" + KEY + "\n");
-        mvc.perform(get("/api/settings"))
+        perform(get("/api/settings"))
                 .andExpect(jsonPath("$.gemini.configured").value(true))
                 .andExpect(jsonPath("$.gemini.source").value("file"))
                 .andExpect(content().string(not(containsString(KEY))));
@@ -150,14 +161,14 @@ class SettingsControllerTest {
     void rejectsInvalidKeyFormatWithoutSavingNorEchoing() throws Exception {
         String withSpaces = "test-key NOT-REAL-0123456789abcdef";
 
-        mvc.perform(json(put("/api/settings/gemini-key"), keyBody(withSpaces)))
+        perform(json(put("/api/settings/gemini-key"), keyBody(withSpaces)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("La key de Gemini no puede contener espacios."))
                 .andExpect(content().string(not(containsString("NOT-REAL"))));
-        mvc.perform(json(put("/api/settings/gemini-key"), keyBody("")))
+        perform(json(put("/api/settings/gemini-key"), keyBody("")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("La key de Gemini no puede estar vacía."));
-        mvc.perform(json(put("/api/settings/gemini-key"), "{}"))
+        perform(json(put("/api/settings/gemini-key"), "{}"))
                 .andExpect(status().isBadRequest());
 
         assertThat(configFile()).doesNotExist();
@@ -165,7 +176,7 @@ class SettingsControllerTest {
 
     @Test
     void malformedJsonIsRejectedWithoutEchoingTheBody() throws Exception {
-        mvc.perform(json(put("/api/settings/gemini-key"), "{\"key\": " + KEY + "}"))
+        perform(json(put("/api/settings/gemini-key"), "{\"key\": " + KEY + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("El cuerpo de la petición no es un JSON válido."))
                 .andExpect(content().string(not(containsString(KEY))));
@@ -175,11 +186,11 @@ class SettingsControllerTest {
     void rejectsTooLargeBody() throws Exception {
         String huge = "{\"key\":\"" + KEY + "\",\"relleno\":\"" + "x".repeat(5000) + "\"}";
 
-        mvc.perform(json(put("/api/settings/gemini-key"), huge))
+        perform(json(put("/api/settings/gemini-key"), huge))
                 .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(content().string(not(containsString(KEY))));
-        mvc.perform(json(patch("/api/settings"), "{\"theme\":\"dark\",\"x\":\"" + "x".repeat(5000) + "\"}"))
+        perform(json(patch("/api/settings"), "{\"theme\":\"dark\",\"x\":\"" + "x".repeat(5000) + "\"}"))
                 .andExpect(status().isPayloadTooLarge());
 
         assertThat(configFile()).doesNotExist();
@@ -187,12 +198,12 @@ class SettingsControllerTest {
 
     @Test
     void keyNeverReachesTheLogs(CapturedOutput output) throws Exception {
-        mvc.perform(json(put("/api/settings/gemini-key"), keyBody(KEY))).andExpect(status().isNoContent());
-        mvc.perform(json(put("/api/settings/gemini-key"), keyBody(KEY + " extra"))).andExpect(status().isBadRequest());
-        mvc.perform(json(put("/api/settings/gemini-key"), "{\"key\": " + KEY + "}")).andExpect(status().isBadRequest());
-        mvc.perform(json(put("/api/settings/gemini-key"), keyBody(KEY + "x".repeat(5000))))
+        perform(json(put("/api/settings/gemini-key"), keyBody(KEY))).andExpect(status().isNoContent());
+        perform(json(put("/api/settings/gemini-key"), keyBody(KEY + " extra"))).andExpect(status().isBadRequest());
+        perform(json(put("/api/settings/gemini-key"), "{\"key\": " + KEY + "}")).andExpect(status().isBadRequest());
+        perform(json(put("/api/settings/gemini-key"), keyBody(KEY + "x".repeat(5000))))
                 .andExpect(status().isPayloadTooLarge());
-        mvc.perform(get("/api/settings")).andExpect(status().isOk());
+        perform(get("/api/settings")).andExpect(status().isOk());
 
         // El cuerpo leído sí se registró (DEBUG), pero con la key tapada.
         assertThat(output.getAll())

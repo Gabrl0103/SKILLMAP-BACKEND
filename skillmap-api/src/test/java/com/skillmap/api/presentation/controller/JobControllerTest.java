@@ -5,6 +5,9 @@ import com.skillmap.api.infrastructure.jobs.ArbeitnowJobSource;
 import com.skillmap.api.infrastructure.jobs.RemotiveJobSource;
 import com.skillmap.api.infrastructure.persistence.JobPostingJpaRepository;
 import com.skillmap.api.infrastructure.persistence.JobSourceSyncJpaRepository;
+import com.skillmap.api.support.TestAuth;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,7 +67,7 @@ class JobControllerTest {
     Clock clock;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         postingsTable.deleteAll();
         syncsTable.deleteAll();
         when(arbeitnow.name()).thenReturn("Arbeitnow");
@@ -72,11 +75,20 @@ class JobControllerTest {
         when(arbeitnow.fetch()).thenReturn(postings("Arbeitnow", 3));
         when(remotive.fetch()).thenReturn(postings("Remotive", 2));
         when(clock.instant()).thenReturn(T0);
+
+        token = TestAuth.register(mvc);
+    }
+
+    private String token;
+
+    /** Todas las peticiones con la sesión de un usuario recién registrado. */
+    private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
+        return mvc.perform(request.with(TestAuth.bearer(token)));
     }
 
     @Test
     void syncReportsPerSourceUpdateAndCooldown() throws Exception {
-        mvc.perform(post("/api/jobs/sync"))
+        perform(post("/api/jobs/sync"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalJobs").value(5))
                 .andExpect(jsonPath("$.sources[?(@.source=='Arbeitnow')].status", contains("SYNCED")))
@@ -89,7 +101,7 @@ class JobControllerTest {
         // 2 h 30 min después: ninguna fuente se vuelve a consultar.
         when(clock.instant()).thenReturn(T0.plus(Duration.ofMinutes(150)));
 
-        mvc.perform(post("/api/jobs/sync"))
+        perform(post("/api/jobs/sync"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sources[*].status", contains("SKIPPED", "SKIPPED")))
                 .andExpect(jsonPath("$.sources[*].updated", contains(false, false)))
@@ -102,16 +114,16 @@ class JobControllerTest {
 
     @Test
     void statsHaveTotalPerSourceCountsAndLastSyncInUtc() throws Exception {
-        mvc.perform(get("/api/jobs/stats"))
+        perform(get("/api/jobs/stats"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalJobs").value(0))
                 .andExpect(jsonPath("$.sources[?(@.name=='Arbeitnow')].jobs", contains(0)))
                 .andExpect(jsonPath("$.sources[?(@.name=='Remotive')].jobs", contains(0)))
                 .andExpect(jsonPath("$.lastSyncAt").doesNotExist());
 
-        mvc.perform(post("/api/jobs/sync")).andExpect(status().isOk());
+        perform(post("/api/jobs/sync")).andExpect(status().isOk());
 
-        mvc.perform(get("/api/jobs/stats"))
+        perform(get("/api/jobs/stats"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalJobs").value(5))
                 .andExpect(jsonPath("$.sources[?(@.name=='Arbeitnow')].jobs", contains(3)))

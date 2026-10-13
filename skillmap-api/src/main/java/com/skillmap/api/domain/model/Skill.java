@@ -29,6 +29,11 @@ public class Skill {
         this.status = SkillStatus.MASTERED;
     }
 
+    /** Copia con el estado de un usuario: el catálogo y la demanda son globales, el progreso es de cada uno. */
+    public Skill withStatus(SkillStatus status) {
+        return new Skill(id, name, category, demandPercentage, status, demandSource);
+    }
+
     /** La demanda pasa a ser la medida en ofertas reales, y se deja constancia de su origen. */
     public void updateDemandFromJobPostings(int demandPercentage) {
         if (demandPercentage < 0 || demandPercentage > 100) {
