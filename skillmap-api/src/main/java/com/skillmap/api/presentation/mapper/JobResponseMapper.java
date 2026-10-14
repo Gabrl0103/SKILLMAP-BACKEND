@@ -3,6 +3,7 @@ package com.skillmap.api.presentation.mapper;
 import com.skillmap.api.domain.model.JobPosting;
 import com.skillmap.api.domain.model.JobStats;
 import com.skillmap.api.domain.model.JobSyncReport;
+import com.skillmap.api.domain.model.SourceSyncStatus;
 import com.skillmap.api.presentation.dto.JobPostingResponse;
 import com.skillmap.api.presentation.dto.JobStatsResponse;
 import com.skillmap.api.presentation.dto.JobSyncResponse;
@@ -30,7 +31,8 @@ public final class JobResponseMapper {
         return new JobSyncResponse(
                 report.sources().stream()
                         .map(s -> new JobSyncResponse.SourceResult(s.source(), s.status().name(),
-                                s.fetched(), s.added(), s.lastSyncAt(), s.message()))
+                                s.status() == SourceSyncStatus.SYNCED, s.fetched(), s.added(), s.lastSyncAt(),
+                                s.nextSyncAt(), s.minutesUntilNextSync(), s.message()))
                         .toList(),
                 report.totalPostings(),
                 report.demandRecalculated()
@@ -41,7 +43,8 @@ public final class JobResponseMapper {
         return new JobStatsResponse(
                 stats.totalPostings(),
                 stats.sources().stream()
-                        .map(s -> new JobStatsResponse.SourceStats(s.name(), s.postings(), s.lastSyncAt()))
+                        .map(s -> new JobStatsResponse.SourceStats(s.name(), s.postings(), s.lastSyncAt(),
+                                s.nextSyncAt()))
                         .toList(),
                 stats.lastSyncAt()
         );

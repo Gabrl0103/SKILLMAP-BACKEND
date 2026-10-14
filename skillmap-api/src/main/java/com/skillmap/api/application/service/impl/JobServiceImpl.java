@@ -82,7 +82,7 @@ public class JobServiceImpl implements JobService {
         for (JobPostingSource source : sources) {
             Optional<Instant> lastSync = syncStateRepository.findLastSync(source.name());
             if (lastSync.isPresent() && now.isBefore(lastSync.get().plus(minSyncInterval))) {
-                results.add(skipped(source.name(), lastSync.get()));
+                results.add(skipped(source.name(), lastSync.get(), now));
                 continue;
             }
             try {
@@ -91,12 +91,16 @@ public class JobServiceImpl implements JobService {
                 syncStateRepository.saveLastSync(source.name(), now);
                 log.info("{}: {} ofertas recibidas, {} nuevas", source.name(), fetched.size(), added);
                 results.add(new SourceSyncResult(source.name(), SourceSyncStatus.SYNCED, fetched.size(), added,
-                        now, added + " ofertas nuevas de " + fetched.size() + " recibidas."));
+                        now, nextSync(now), minutesUntil(nextSync(now), now),
+                        added + " ofertas nuevas de " + fetched.size() + " recibidas."));
             } catch (JobSourceException e) {
                 log.warn("No se pudo sincronizar {}: {}", source.name(), e.getMessage(), e.getCause());
                 failures.add(e);
+                // El intervalo cuenta desde la última sincronización correcta: tras un fallo
+                // normalmente se puede reintentar ya.
+                Instant next = lastSync.map(this::nextSync).orElse(null);
                 results.add(new SourceSyncResult(source.name(), SourceSyncStatus.FAILED, 0, 0,
-                        lastSync.orElse(null), e.getMessage()));
+                        lastSync.orElse(null), next, minutesUntil(next, now), e.getMessage()));
             }
         }
         // Si no funcionó ninguna, no hay nada que resumir: el error de la primera llega al cliente.
@@ -128,18 +132,34 @@ public class JobServiceImpl implements JobService {
         names.addAll(counts.keySet());
 
         List<JobStats.SourceStats> perSource = names.stream()
-                .map(name -> new JobStats.SourceStats(name, counts.getOrDefault(name, 0L), syncs.get(name)))
+                .map(name -> new JobStats.SourceStats(name, counts.getOrDefault(name, 0L), syncs.get(name),
+                        syncs.containsKey(name) ? nextSync(syncs.get(name)) : null))
                 .toList();
         Instant lastSync = syncs.values().stream().max(Comparator.naturalOrder()).orElse(null);
         return new JobStats(postingRepository.count(), perSource, lastSync);
     }
 
-    private SourceSyncResult skipped(String source, Instant lastSync) {
+    private SourceSyncResult skipped(String source, Instant lastSync, Instant now) {
+        Instant next = nextSync(lastSync);
+        long minutes = minutesUntil(next, now);
         String message = source + " ya se sincronizó el " + DATE_FORMAT.format(lastSync)
                 + ". Para no superar su límite de uso se sincroniza como mucho cada "
                 + minSyncInterval.toHours() + " horas; se podrá de nuevo a partir del "
-                + DATE_FORMAT.format(lastSync.plus(minSyncInterval)) + ".";
-        return new SourceSyncResult(source, SourceSyncStatus.SKIPPED, 0, 0, lastSync, message);
+                + DATE_FORMAT.format(next) + " (faltan " + minutes + " minutos).";
+        return new SourceSyncResult(source, SourceSyncStatus.SKIPPED, 0, 0, lastSync, next, minutes, message);
+    }
+
+    private Instant nextSync(Instant lastSync) {
+        return lastSync.plus(minSyncInterval);
+    }
+
+    /** Minutos que faltan, redondeando hacia arriba ("falta 1 minuto" mientras quede algún segundo). */
+    private static long minutesUntil(Instant next, Instant now) {
+        if (next == null || !now.isBefore(next)) {
+            return 0;
+        }
+        long seconds = Duration.between(now, next).toSeconds();
+        return (seconds + 59) / 60;
     }
 
     /** Guarda solo las que no estaban ya y no son demasiado viejas. @return cuántas se guardaron */

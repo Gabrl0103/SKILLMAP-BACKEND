@@ -5,7 +5,6 @@ import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
 import com.skillmap.api.domain.model.JobMatch;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.port.JobSkillExtractor;
-import com.skillmap.api.domain.repository.SkillRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,20 +22,20 @@ public class JobAnalyzerServiceImpl implements JobAnalyzerService {
     private static final double IN_PROGRESS_WEIGHT = 0.5;
 
     private final JobSkillExtractor skillExtractor;
-    private final SkillRepository skillRepository;
+    private final UserSkillCatalog userSkills;
 
-    public JobAnalyzerServiceImpl(JobSkillExtractor skillExtractor, SkillRepository skillRepository) {
+    public JobAnalyzerServiceImpl(JobSkillExtractor skillExtractor, UserSkillCatalog userSkills) {
         this.skillExtractor = skillExtractor;
-        this.skillRepository = skillRepository;
+        this.userSkills = userSkills;
     }
 
     @Override
-    public JobMatch analyze(String jobDescription) {
+    public JobMatch analyze(Long userId, String jobDescription) {
         validate(jobDescription);
 
         // Índice del catálogo por nombre normalizado para comparar sin distinguir mayúsculas.
         Map<String, Skill> catalog = new LinkedHashMap<>();
-        skillRepository.findAll().forEach(s -> catalog.putIfAbsent(normalize(s.getName()), s));
+        userSkills.findAll(userId).forEach(s -> catalog.putIfAbsent(normalize(s.getName()), s));
 
         List<String> required = skillExtractor.extractSkills(jobDescription.strip(),
                 catalog.values().stream().map(Skill::getName).toList());

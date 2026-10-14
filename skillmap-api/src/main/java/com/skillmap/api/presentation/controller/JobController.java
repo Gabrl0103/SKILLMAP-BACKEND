@@ -24,6 +24,7 @@ public class JobController {
         this.jobService = jobService;
     }
 
+    // TODO versión web: key y sync solo admin.
     @PostMapping("/sync")
     public JobSyncResponse sync() {
         return JobResponseMapper.toResponse(jobService.sync());

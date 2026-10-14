@@ -9,7 +9,11 @@ import java.util.List;
  * consuma esta capa (en este proyecto, el SkillController).
  */
 public interface SkillService {
-    List<Skill> getAllSkills();
-    Skill getSkillById(Long id);
-    Skill markSkillAsMastered(Long id);
+    /** Todas las habilidades, con el estado del usuario. */
+    List<Skill> getAllSkills(Long userId);
+    Skill getSkillById(Long userId, Long id);
+    /** Solo cambia el progreso de ese usuario. */
+    Skill markSkillAsMastered(Long userId, Long id);
+    /** Deshace el marcado: la habilidad vuelve a pendiente para ese usuario. Repetirlo no falla. */
+    Skill unmarkSkillAsMastered(Long userId, Long id);
 }

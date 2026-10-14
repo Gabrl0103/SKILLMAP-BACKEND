@@ -8,5 +8,5 @@ import java.util.List;
 public interface CareerGoalService {
     List<CareerGoal> getAllGoals();
     CareerGoal getGoalById(Long id);
-    GoalReadiness getReadiness(Long goalId);
+    GoalReadiness getReadiness(Long userId, Long goalId);
 }

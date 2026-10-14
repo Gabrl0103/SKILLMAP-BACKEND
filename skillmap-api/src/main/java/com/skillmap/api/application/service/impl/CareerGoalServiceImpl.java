@@ -8,7 +8,6 @@ import com.skillmap.api.domain.model.GoalSkill;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.model.SkillStatus;
 import com.skillmap.api.domain.repository.CareerGoalRepository;
-import com.skillmap.api.domain.repository.SkillRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -22,11 +21,11 @@ import java.util.stream.Collectors;
 public class CareerGoalServiceImpl implements CareerGoalService {
 
     private final CareerGoalRepository goalRepository;
-    private final SkillRepository skillRepository;
+    private final UserSkillCatalog catalog;
 
-    public CareerGoalServiceImpl(CareerGoalRepository goalRepository, SkillRepository skillRepository) {
+    public CareerGoalServiceImpl(CareerGoalRepository goalRepository, UserSkillCatalog catalog) {
         this.goalRepository = goalRepository;
-        this.skillRepository = skillRepository;
+        this.catalog = catalog;
     }
 
     @Override
@@ -40,12 +39,12 @@ public class CareerGoalServiceImpl implements CareerGoalService {
     }
 
     @Override
-    public GoalReadiness getReadiness(Long goalId) {
+    public GoalReadiness getReadiness(Long userId, Long goalId) {
         CareerGoal goal = getGoalById(goalId);
         Set<Long> goalSkillIds = goal.getSkills().stream().map(GoalSkill::skillId).collect(Collectors.toSet());
 
-        // Solo las habilidades que pertenecen a este objetivo.
-        Map<Long, Skill> goalSkills = skillRepository.findAll().stream()
+        // Solo las habilidades que pertenecen a este objetivo, con el progreso del usuario.
+        Map<Long, Skill> goalSkills = catalog.findAll(userId).stream()
                 .filter(s -> goalSkillIds.contains(s.getId()))
                 .collect(Collectors.toMap(Skill::getId, Function.identity()));
 

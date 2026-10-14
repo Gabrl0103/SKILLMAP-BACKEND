@@ -10,6 +10,7 @@ public record JobStats(
         Instant lastSyncAt
 ) {
 
-    public record SourceStats(String name, long postings, Instant lastSyncAt) {
+    /** @param nextSyncAt desde cuándo se puede volver a sincronizar (null si nunca se sincronizó) */
+    public record SourceStats(String name, long postings, Instant lastSyncAt, Instant nextSyncAt) {
     }
 }

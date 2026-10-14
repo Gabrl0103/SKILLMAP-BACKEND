@@ -10,13 +10,21 @@ public record JobSyncResponse(
         boolean demandRecalculated
 ) {
 
-    /** status: SYNCED, SKIPPED (sincronizada hace poco) o FAILED. */
+    /**
+     * status: SYNCED, SKIPPED (sincronizada hace poco) o FAILED.
+     * updated: true si en esta llamada se trajeron ofertas de la fuente (status SYNCED).
+     * nextSyncAt / minutesUntilNextSync: cuándo se podrá volver a sincronizar y cuántos minutos
+     * faltan (0 = ya se puede; nextSyncAt null si nunca se sincronizó con éxito).
+     */
     public record SourceResult(
             String source,
             String status,
+            boolean updated,
             int fetched,
             int added,
             Instant lastSyncAt,
+            Instant nextSyncAt,
+            long minutesUntilNextSync,
             String message
     ) {
     }

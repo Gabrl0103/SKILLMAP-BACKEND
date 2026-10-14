@@ -1,22 +1,32 @@
 package com.skillmap.api.presentation.exception;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.skillmap.api.domain.exception.AiInvalidResponseException;
 import com.skillmap.api.domain.exception.AiNotConfiguredException;
 import com.skillmap.api.domain.exception.AiRateLimitException;
 import com.skillmap.api.domain.exception.AiServiceException;
 import com.skillmap.api.domain.exception.AiTimeoutException;
+import com.skillmap.api.domain.exception.AuthenticationRequiredException;
 import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
+import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
+import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
+import com.skillmap.api.domain.exception.InvalidSettingsException;
+import com.skillmap.api.domain.exception.InvalidUserDataException;
 import com.skillmap.api.domain.exception.JobSourceException;
 import com.skillmap.api.domain.exception.JobSourceInvalidResponseException;
 import com.skillmap.api.domain.exception.JobSourceRateLimitException;
 import com.skillmap.api.domain.exception.JobSourceUnavailableException;
+import com.skillmap.api.domain.exception.SettingsStorageException;
 import com.skillmap.api.domain.exception.SkillNotFoundException;
+import com.skillmap.api.domain.exception.TooManyLoginAttemptsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -24,7 +34,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 /**
  * Manejo global de excepciones: ningún controlador necesita try/catch propio.
  * Cualquier excepción de este tipo, venga de donde venga, termina en una
- * respuesta HTTP consistente para los 3 clientes.
+ * respuesta HTTP consistente para los 3 clientes. Ninguna respuesta repite el
+ * cuerpo recibido (puede llevar la key de Gemini).
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -51,8 +62,58 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidSettingsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSettings(InvalidSettingsException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidUserDataException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidUserData(InvalidUserDataException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyRegistered(EmailAlreadyRegisteredException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler({InvalidCredentialsException.class, AuthenticationRequiredException.class})
+    public ResponseEntity<ErrorResponse> handleUnauthorized(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(TooManyLoginAttemptsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyLoginAttempts(TooManyLoginAttemptsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    /** Cabecera obligatoria ausente: se nombra la cabecera, nunca su valor. */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ErrorResponse> handleMissingHeader(MissingRequestHeaderException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(
+                "Falta la cabecera '" + ex.getHeaderName() + "'."));
+    }
+
+    @ExceptionHandler(SettingsStorageException.class)
+    public ResponseEntity<ErrorResponse> handleSettingsStorage(SettingsStorageException ex) {
+        // Sin la causa: el adaptador ya registró la ruta y el tipo de error.
+        log.warn("Fallo al guardar los ajustes: {}", ex.getMessage());
+        return ResponseEntity.internalServerError().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    /**
+     * Mensaje fijo, sin el de Jackson: ese incluye un trozo de lo recibido. Si un campo conocido
+     * trae un tipo que no toca, se nombra el campo (lo define la API, no el cliente), nunca el valor.
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        if (ex.getCause() instanceof MismatchedInputException mismatch && !mismatch.getPath().isEmpty()) {
+            JsonMappingException.Reference field = mismatch.getPath().get(mismatch.getPath().size() - 1);
+            if (field.getFieldName() != null) {
+                return ResponseEntity.badRequest().body(new ErrorResponse(
+                        "El campo '" + field.getFieldName() + "' no tiene un valor válido."));
+            }
+        }
         return ResponseEntity.badRequest().body(new ErrorResponse(
                 "El cuerpo de la petición no es un JSON válido."));
     }

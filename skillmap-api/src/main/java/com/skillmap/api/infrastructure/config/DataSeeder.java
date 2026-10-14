@@ -2,9 +2,7 @@ package com.skillmap.api.infrastructure.config;
 
 import com.skillmap.api.domain.factory.CareerGoalFactory;
 import com.skillmap.api.domain.factory.SkillFactory;
-import com.skillmap.api.domain.model.DemandSource;
 import com.skillmap.api.domain.model.GoalSkill;
-import com.skillmap.api.domain.model.SkillStatus;
 import com.skillmap.api.domain.repository.CareerGoalRepository;
 import com.skillmap.api.domain.repository.SkillRepository;
 import org.slf4j.Logger;
@@ -17,7 +15,8 @@ import java.util.List;
 /**
  * Carga datos de ejemplo al arrancar: habilidades y cinco objetivos laborales.
  * Solo actúa con la base vacía: la base persiste entre reinicios y no se debe pisar
- * la demanda calculada con ofertas reales ni el progreso del usuario.
+ * la demanda calculada con ofertas reales. El progreso es de cada usuario (tabla user_skills):
+ * aquí todas las habilidades nacen pendientes.
  */
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -44,26 +43,26 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        var react = seed("React", "Frontend", 95, SkillStatus.MASTERED);
-        var ts = seed("TypeScript", "Frontend", 88, SkillStatus.IN_PROGRESS);
-        var next = seed("Next.js", "Frontend", 71, SkillStatus.PENDING);
-        var tailwind = seed("Tailwind CSS", "Frontend", 64, SkillStatus.MASTERED);
-        var testing = seed("Testing", "Calidad", 69, SkillStatus.PENDING);
-        var java = seed("Java", "Backend", 82, SkillStatus.IN_PROGRESS);
-        var spring = seed("Spring Boot", "Backend", 74, SkillStatus.IN_PROGRESS);
-        var sql = seed("SQL", "Datos", 90, SkillStatus.MASTERED);
-        var docker = seed("Docker", "DevOps", 68, SkillStatus.MASTERED);
-        var python = seed("Python", "Datos", 92, SkillStatus.IN_PROGRESS);
-        var ml = seed("Machine Learning", "Datos", 78, SkillStatus.PENDING);
-        var pandas = seed("Pandas", "Datos", 70, SkillStatus.PENDING);
-        var stats = seed("Estadística", "Datos", 66, SkillStatus.PENDING);
-        var aws = seed("AWS", "DevOps", 89, SkillStatus.PENDING);
-        var kubernetes = seed("Kubernetes", "DevOps", 73, SkillStatus.PENDING);
-        var terraform = seed("Terraform", "DevOps", 62, SkillStatus.PENDING);
-        var cicd = seed("CI/CD", "DevOps", 76, SkillStatus.IN_PROGRESS);
-        var reactNative = seed("React Native", "Móvil", 80, SkillStatus.PENDING);
-        var kotlin = seed("Kotlin", "Móvil", 67, SkillStatus.PENDING);
-        var swift = seed("Swift", "Móvil", 63, SkillStatus.PENDING);
+        var react = seed("React", "Frontend", 95);
+        var ts = seed("TypeScript", "Frontend", 88);
+        var next = seed("Next.js", "Frontend", 71);
+        var tailwind = seed("Tailwind CSS", "Frontend", 64);
+        var testing = seed("Testing", "Calidad", 69);
+        var java = seed("Java", "Backend", 82);
+        var spring = seed("Spring Boot", "Backend", 74);
+        var sql = seed("SQL", "Datos", 90);
+        var docker = seed("Docker", "DevOps", 68);
+        var python = seed("Python", "Datos", 92);
+        var ml = seed("Machine Learning", "Datos", 78);
+        var pandas = seed("Pandas", "Datos", 70);
+        var stats = seed("Estadística", "Datos", 66);
+        var aws = seed("AWS", "DevOps", 89);
+        var kubernetes = seed("Kubernetes", "DevOps", 73);
+        var terraform = seed("Terraform", "DevOps", 62);
+        var cicd = seed("CI/CD", "DevOps", 76);
+        var reactNative = seed("React Native", "Móvil", 80);
+        var kotlin = seed("Kotlin", "Móvil", 67);
+        var swift = seed("Swift", "Móvil", 63);
 
         goalRepository.save(CareerGoalFactory.createNew(
                 "Frontend Senior",
@@ -96,9 +95,8 @@ public class DataSeeder implements CommandLineRunner {
                         new GoalSkill(swift, 3), new GoalSkill(testing, 3))));
     }
 
-    /** Crea la habilidad con su estado inicial y devuelve el id generado. */
-    private Long seed(String name, String category, int demand, SkillStatus status) {
-        var skill = SkillFactory.reconstruct(null, name, category, demand, status, DemandSource.SEEDED);
-        return skillRepository.save(skill).getId();
+    /** Crea la habilidad y devuelve el id generado. */
+    private Long seed(String name, String category, int demand) {
+        return skillRepository.save(SkillFactory.createNew(name, category, demand)).getId();
     }
 }
