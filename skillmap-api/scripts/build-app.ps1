@@ -8,7 +8,7 @@
     3. Crea la imagen de la app con jpackage (sin ventana de consola, runtime propio).
     4. Copia scripts\stop.bat junto al ejecutable.
     5. Prueba de humo: arranca SkillMap.exe con datos temporales, en otro puerto, sin abrir
-       el navegador y sin llamar a Remotive, Arbeitnow ni Gemini; comprueba / y /api/skills.
+       el navegador y sin llamar a Remotive, Arbeitnow, Gemini ni al servicio de IA en la nube; comprueba / y /api/skills.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\build-app.ps1
@@ -191,6 +191,7 @@ if ($SkipSmokeTest) {
         "--jobs.remotive.base-url=$unreachable",
         "--jobs.arbeitnow.base-url=$unreachable",
         "--gemini.base-url=$unreachable",
+        "--skillmap.ai.remote-url=$unreachable",
         '--spring.jpa.show-sql=false'
     )
     $outLog = Join-Path $testHome 'stdout.log'
