@@ -13,7 +13,10 @@ public record JobStatsResponse(
         Instant lastSyncAt
 ) {
 
-    /** nextSyncAt: desde cuándo se puede volver a sincronizar la fuente. */
-    public record SourceStats(String name, long jobs, Instant lastSyncAt, Instant nextSyncAt) {
+    /**
+     * nextSyncAt: desde cuándo se puede volver a sincronizar la fuente.
+     * autoSyncDays: cada cuántos días se sincroniza sola (null si no hay sincronización automática).
+     */
+    public record SourceStats(String name, long jobs, Instant lastSyncAt, Instant nextSyncAt, Integer autoSyncDays) {
     }
 }

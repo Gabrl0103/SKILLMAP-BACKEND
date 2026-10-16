@@ -5,6 +5,7 @@ import com.skillmap.api.infrastructure.jobs.ArbeitnowJobSource;
 import com.skillmap.api.infrastructure.jobs.RemotiveJobSource;
 import com.skillmap.api.infrastructure.persistence.JobPostingJpaRepository;
 import com.skillmap.api.infrastructure.persistence.JobSourceSyncJpaRepository;
+import com.skillmap.api.infrastructure.scheduling.RemotiveAutoSync;
 import com.skillmap.api.support.TestAuth;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -66,6 +67,10 @@ class JobControllerTest {
     @MockBean
     Clock clock;
 
+    /** En los tests la sincronización automática está apagada: un mock que solo informa el intervalo. */
+    @MockBean
+    RemotiveAutoSync remotiveAutoSync;
+
     @BeforeEach
     void setUp() throws Exception {
         postingsTable.deleteAll();
@@ -75,6 +80,7 @@ class JobControllerTest {
         when(arbeitnow.fetch()).thenReturn(postings("Arbeitnow", 3));
         when(remotive.fetch()).thenReturn(postings("Remotive", 2));
         when(clock.instant()).thenReturn(T0);
+        when(remotiveAutoSync.intervalDays()).thenReturn(4);
 
         token = TestAuth.register(mvc);
     }
@@ -119,6 +125,7 @@ class JobControllerTest {
                 .andExpect(jsonPath("$.totalJobs").value(0))
                 .andExpect(jsonPath("$.sources[?(@.name=='Arbeitnow')].jobs", contains(0)))
                 .andExpect(jsonPath("$.sources[?(@.name=='Remotive')].jobs", contains(0)))
+                .andExpect(jsonPath("$.sources[?(@.name=='Remotive')].autoSyncDays", contains(4)))
                 .andExpect(jsonPath("$.lastSyncAt").doesNotExist());
 
         perform(post("/api/jobs/sync")).andExpect(status().isOk());

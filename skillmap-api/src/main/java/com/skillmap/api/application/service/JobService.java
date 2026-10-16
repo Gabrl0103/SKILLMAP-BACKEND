@@ -10,6 +10,8 @@ import java.util.List;
 public interface JobService {
     /** Trae ofertas nuevas de cada fuente, aplica la retención y recalcula la demanda de las habilidades. */
     JobSyncReport sync();
+    /** Como {@link #sync()}, pero solo con la fuente indicada (mismo intervalo mínimo, retención y demanda). */
+    JobSyncReport syncSource(String source);
     List<JobPosting> getNewestJobs(int limit);
     JobStats getStats();
 }

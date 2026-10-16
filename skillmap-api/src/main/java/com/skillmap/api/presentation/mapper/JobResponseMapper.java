@@ -8,6 +8,8 @@ import com.skillmap.api.presentation.dto.JobPostingResponse;
 import com.skillmap.api.presentation.dto.JobStatsResponse;
 import com.skillmap.api.presentation.dto.JobSyncResponse;
 
+import java.util.Map;
+
 public final class JobResponseMapper {
 
     private JobResponseMapper() {
@@ -39,12 +41,13 @@ public final class JobResponseMapper {
         );
     }
 
-    public static JobStatsResponse toResponse(JobStats stats) {
+    /** @param autoSyncDays cada cuántos días se sincroniza sola cada fuente (las que no aparecen, nunca) */
+    public static JobStatsResponse toResponse(JobStats stats, Map<String, Integer> autoSyncDays) {
         return new JobStatsResponse(
                 stats.totalPostings(),
                 stats.sources().stream()
                         .map(s -> new JobStatsResponse.SourceStats(s.name(), s.postings(), s.lastSyncAt(),
-                                s.nextSyncAt()))
+                                s.nextSyncAt(), autoSyncDays.get(s.name())))
                         .toList(),
                 stats.lastSyncAt()
         );
