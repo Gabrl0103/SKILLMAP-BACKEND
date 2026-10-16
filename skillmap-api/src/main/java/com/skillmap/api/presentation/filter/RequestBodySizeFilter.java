@@ -7,6 +7,7 @@ import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Limita el cuerpo de /api/settings/** a {@link #MAX_BODY_BYTES}. Se cuenta lo que llega de
+ * Limita el cuerpo de /api/settings/** a {@link #MAX_BODY_BYTES} (en el perfil cloud, el de
+ * /api/ai/**, ver CloudConfig). Se cuenta lo que llega de
  * verdad, no solo la cabecera Content-Length, así que tampoco pasa un cuerpo "chunked" grande.
  * Lo que sobra no se lee ni se devuelve.
  */
@@ -28,36 +30,49 @@ import java.nio.charset.StandardCharsets;
 public class RequestBodySizeFilter extends OncePerRequestFilter {
 
     static final int MAX_BODY_BYTES = 4 * 1024;
-    private static final String PATH_PREFIX = "/api/settings";
-    private static final String TOO_LARGE_BODY =
-            "{\"message\":\"El cuerpo de la petición es demasiado grande (máximo 4 KB).\"}";
+
+    private final String pathPrefix;
+    private final int maxBodyBytes;
+    private final String tooLargeBody;
+
+    @Autowired
+    public RequestBodySizeFilter() {
+        this("/api/settings", MAX_BODY_BYTES);
+    }
+
+    public RequestBodySizeFilter(String pathPrefix, int maxBodyBytes) {
+        this.pathPrefix = pathPrefix;
+        this.maxBodyBytes = maxBodyBytes;
+        this.tooLargeBody = "{\"message\":\"El cuerpo de la petición es demasiado grande (máximo "
+                + maxBodyBytes / 1024 + " KB).\"}";
+    }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return !(path.equals(PATH_PREFIX) || path.startsWith(PATH_PREFIX + "/"));
+        return !(path.equals(pathPrefix) || path.startsWith(pathPrefix + "/"));
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        if (request.getContentLengthLong() > MAX_BODY_BYTES) {
+        if (request.getContentLengthLong() > maxBodyBytes) {
             reject(response);
             return;
         }
-        byte[] body = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);
-        if (body.length > MAX_BODY_BYTES) {
+        byte[] body = request.getInputStream().readNBytes(maxBodyBytes + 1);
+        if (body.length > maxBodyBytes) {
             reject(response);
             return;
         }
         chain.doFilter(new CachedBodyRequest(request, body), response);
     }
 
-    private static void reject(HttpServletResponse response) throws IOException {
+    private void reject(HttpServletResponse response) throws IOException {
         response.setStatus(HttpStatus.PAYLOAD_TOO_LARGE.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write(TOO_LARGE_BODY);
+        response.getWriter().write(tooLargeBody);
     }
 
     /** La petición con el cuerpo ya leído, para que el controlador pueda leerlo otra vez. */

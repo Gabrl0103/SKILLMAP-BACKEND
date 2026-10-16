@@ -1,5 +1,6 @@
 package com.skillmap.api.infrastructure.desktop;
 
+import com.skillmap.api.infrastructure.config.CloudConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
@@ -41,6 +42,10 @@ public class SingleInstanceGuard implements ApplicationListener<ApplicationEnvir
     @Override
     public void onApplicationEvent(ApplicationEnvironmentPreparedEvent event) {
         ConfigurableEnvironment environment = event.getEnvironment();
+        // En la nube no hay base en archivo ni navegador que abrir.
+        if (environment.matchesProfiles(CloudConfig.PROFILE)) {
+            return;
+        }
         InstanceFiles files = InstanceFiles.from(environment);
         if (acquireLock(files)) {
             // El de una ejecución anterior cerrada a la fuerza ya no vale.

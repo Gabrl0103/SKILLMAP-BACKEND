@@ -264,6 +264,21 @@ class AuthControllerTest {
         mvc.perform(get("/index.html")).andExpect(status().is(not(401)));
     }
 
+    @Test
+    void healthIsPublic() throws Exception {
+        mvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+    }
+
+    @Test
+    void cloudAiEndpointDoesNotExistOnDesktop() throws Exception {
+        mvc.perform(post("/api/ai/extract-skills").with(TestAuth.bearer(TestAuth.register(mvc)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"jobDescription\":\"React\"}"))
+                .andExpect(status().isNotFound());
+    }
+
     // ---------- Secretos fuera de logs y respuestas ----------
 
     @Test

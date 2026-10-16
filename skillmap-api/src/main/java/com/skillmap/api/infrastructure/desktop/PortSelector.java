@@ -1,5 +1,6 @@
 package com.skillmap.api.infrastructure.desktop;
 
+import com.skillmap.api.infrastructure.config.CloudConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
@@ -40,6 +41,10 @@ public class PortSelector implements ApplicationListener<ApplicationEnvironmentP
 
     @Override
     public void onApplicationEvent(ApplicationEnvironmentPreparedEvent event) {
+        // En la nube el puerto lo impone la plataforma (PORT): no se busca otro.
+        if (event.getEnvironment().matchesProfiles(CloudConfig.PROFILE)) {
+            return;
+        }
         selectPort(event.getEnvironment());
     }
 

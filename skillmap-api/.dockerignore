@@ -1,0 +1,9 @@
+target/
+data/
+dist/
+scripts/
+.idea/
+*.iml
+.git
+.claude/
+src/main/resources/static/
