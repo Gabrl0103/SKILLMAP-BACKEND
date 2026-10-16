@@ -5,6 +5,7 @@ import com.skillmap.api.domain.port.JobSkillExtractor;
 import com.skillmap.api.infrastructure.config.DataSeeder;
 import com.skillmap.api.infrastructure.desktop.DesktopLauncher;
 import com.skillmap.api.infrastructure.scheduling.JobSyncScheduler;
+import com.skillmap.api.infrastructure.scheduling.RemotiveAutoSync;
 import com.skillmap.api.presentation.filter.AuthenticationFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(properties = {
         "skillmap.home=${java.io.tmpdir}/skillmap-cloud-test",
+        // Encendida (en los demás tests está apagada) para comprobar que en cloud no existe igualmente.
+        "skillmap.sync.remotive.enabled=true",
         "logging.level.org.springframework.web.servlet.mvc.method.annotation=DEBUG"
 })
 @ActiveProfiles("cloud")
@@ -72,6 +75,7 @@ class CloudProfileTest {
         assertThat(context.getBeanNamesForType(AuthService.class)).isEmpty();
         assertThat(context.getBeanNamesForType(AuthenticationFilter.class)).isEmpty();
         assertThat(context.getBeanNamesForType(JobSyncScheduler.class)).isEmpty();
+        assertThat(context.getBeanNamesForType(RemotiveAutoSync.class)).isEmpty();
         assertThat(context.getBeanNamesForType(DesktopLauncher.class)).isEmpty();
         assertThat(context.getBeanNamesForType(DataSeeder.class)).isEmpty();
     }

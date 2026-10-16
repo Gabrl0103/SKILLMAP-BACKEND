@@ -25,6 +25,8 @@ Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador po
   (por defecto Live Server: `http://localhost:5500`, `http://127.0.0.1:5500`).
 - **Una sola instancia** por carpeta de datos: un segundo arranque abre la ventana de la primera y termina.
 - **Primer arranque**: sin ofertas guardadas, se sincroniza en segundo plano (`jobs.sync.on-first-start`).
+- **Remotive automático**: al arrancar y cada hora, si la última actualización de Remotive tiene
+  `skillmap.sync.remotive.interval-days` días o más (4 por defecto, de 3 a 5), se sincroniza solo Remotive.
 - **API key de Gemini**: variable de entorno `GEMINI_API_KEY` o, si no existe, la línea
   `gemini.api.key=...` en `%APPDATA%\SkillMap\config.properties`. Nunca en el repositorio.
 - **Frontend**: se sirve desde `classpath:/static/`. El script de empaquetado lo copia a

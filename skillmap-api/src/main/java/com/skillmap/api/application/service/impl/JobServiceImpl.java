@@ -71,15 +71,28 @@ public class JobServiceImpl implements JobService {
         this.minPostingsForDemand = minPostingsForDemand;
     }
 
-    /** synchronized: la sincronización programada y una manual no pueden pisarse. */
     @Override
-    public synchronized JobSyncReport sync() {
+    public JobSyncReport sync() {
+        return sync(sources);
+    }
+
+    @Override
+    public JobSyncReport syncSource(String source) {
+        List<JobPostingSource> selected = sources.stream().filter(s -> s.name().equals(source)).toList();
+        if (selected.isEmpty()) {
+            throw new IllegalArgumentException("Fuente de ofertas desconocida: " + source);
+        }
+        return sync(selected);
+    }
+
+    /** synchronized: la sincronización programada y una manual no pueden pisarse. */
+    private synchronized JobSyncReport sync(List<JobPostingSource> toSync) {
         // A segundos: la base de datos no guarda nanosegundos y la fecha debe verse igual antes y después.
         Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
         List<SourceSyncResult> results = new ArrayList<>();
         List<JobSourceException> failures = new ArrayList<>();
 
-        for (JobPostingSource source : sources) {
+        for (JobPostingSource source : toSync) {
             Optional<Instant> lastSync = syncStateRepository.findLastSync(source.name());
             if (lastSync.isPresent() && now.isBefore(lastSync.get().plus(minSyncInterval))) {
                 results.add(skipped(source.name(), lastSync.get(), now));
@@ -104,7 +117,7 @@ public class JobServiceImpl implements JobService {
             }
         }
         // Si no funcionó ninguna, no hay nada que resumir: el error de la primera llega al cliente.
-        if (!sources.isEmpty() && failures.size() == sources.size()) {
+        if (!toSync.isEmpty() && failures.size() == toSync.size()) {
             throw failures.get(0);
         }
 

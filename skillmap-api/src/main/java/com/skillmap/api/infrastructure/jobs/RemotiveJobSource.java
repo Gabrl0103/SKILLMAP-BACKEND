@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 public class RemotiveJobSource implements JobPostingSource {
 
     private static final Logger log = LoggerFactory.getLogger(RemotiveJobSource.class);
-    static final String NAME = "Remotive";
+    public static final String NAME = "Remotive";
     /** Slug según GET /api/remote-jobs/categories. Se envía por si el feed vuelve a respetarlo. */
     static final String CATEGORY_SLUG = "software-development";
 

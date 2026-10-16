@@ -76,6 +76,11 @@ class JobSyncSchedulerTest {
         }
 
         @Override
+        public JobSyncReport syncSource(String source) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public List<JobPosting> getNewestJobs(int limit) {
             return List.of();
         }

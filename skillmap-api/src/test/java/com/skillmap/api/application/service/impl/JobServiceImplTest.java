@@ -283,6 +283,50 @@ class JobServiceImplTest {
                 .hasMessageContaining("Remotive no está disponible");
     }
 
+    // ---------- Una sola fuente ----------
+
+    @Test
+    void syncSourceCallsOnlyThatSource() {
+        FakeSource remotive = new FakeSource("Remotive", () -> postings("Remotive", 3, "Java"));
+        FakeSource arbeitnow = new FakeSource("Arbeitnow", () -> postings("Arbeitnow", 4, "Java"));
+
+        JobSyncReport report = service(remotive, arbeitnow).syncSource("Remotive");
+
+        assertThat(report.sources()).extracting(SourceSyncResult::source).containsExactly("Remotive");
+        assertThat(remotive.calls).isEqualTo(1);
+        assertThat(arbeitnow.calls).isZero();
+        assertThat(syncState.findLastSync("Arbeitnow")).isEmpty();
+    }
+
+    @Test
+    void syncSourceDoesNotDuplicatePostingsAndRecalculatesDemand() {
+        postings.saveAll(postings("Remotive", 20, "Java"));
+        FakeSource remotive = new FakeSource("Remotive", () -> postings("Remotive", 30, "Java"));
+
+        JobSyncReport report = service(remotive).syncSource("Remotive");
+
+        assertThat(report.sources().get(0).added()).isEqualTo(10);
+        assertThat(report.totalPostings()).isEqualTo(30);
+        assertThat(report.demandRecalculated()).isTrue();
+    }
+
+    @Test
+    void syncSourceRespectsMinInterval() {
+        syncState.saveLastSync("Remotive", NOW.minus(Duration.ofHours(1)));
+        FakeSource remotive = new FakeSource("Remotive", () -> postings("Remotive", 3, "Java"));
+
+        JobSyncReport report = service(remotive).syncSource("Remotive");
+
+        assertThat(report.sources().get(0).status()).isEqualTo(SourceSyncStatus.SKIPPED);
+        assertThat(remotive.calls).isZero();
+    }
+
+    @Test
+    void syncSourceRejectsUnknownSource() {
+        assertThatThrownBy(() -> service(new FakeSource("Remotive", List::of)).syncSource("Otra"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
     void failedSourceCanBeRetriedImmediately() {
         int[] attempt = {0};
