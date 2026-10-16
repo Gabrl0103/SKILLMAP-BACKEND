@@ -1,10 +1,10 @@
 package com.skillmap.api.application.service.impl;
 
 import com.skillmap.api.application.service.JobAnalyzerService;
-import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
 import com.skillmap.api.domain.model.JobMatch;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.port.JobSkillExtractor;
+import com.skillmap.api.domain.service.JobDescriptionValidator;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -18,7 +18,7 @@ import java.util.Set;
 @Service
 public class JobAnalyzerServiceImpl implements JobAnalyzerService {
 
-    static final int MAX_DESCRIPTION_LENGTH = 8_000;
+    static final int MAX_DESCRIPTION_LENGTH = JobDescriptionValidator.MAX_LENGTH;
     private static final double IN_PROGRESS_WEIGHT = 0.5;
 
     private final JobSkillExtractor skillExtractor;
@@ -31,7 +31,7 @@ public class JobAnalyzerServiceImpl implements JobAnalyzerService {
 
     @Override
     public JobMatch analyze(Long userId, String jobDescription) {
-        validate(jobDescription);
+        JobDescriptionValidator.validate(jobDescription);
 
         // Índice del catálogo por nombre normalizado para comparar sin distinguir mayúsculas.
         Map<String, Skill> catalog = new LinkedHashMap<>();
@@ -64,16 +64,6 @@ public class JobAnalyzerServiceImpl implements JobAnalyzerService {
 
         return new JobMatch(matchPercentage(mastered.size(), inProgress.size(), seen.size()),
                 mastered, inProgress, missing);
-    }
-
-    private static void validate(String jobDescription) {
-        if (jobDescription == null || jobDescription.isBlank()) {
-            throw new InvalidJobDescriptionException("La descripción de la oferta no puede estar vacía.");
-        }
-        if (jobDescription.strip().length() > MAX_DESCRIPTION_LENGTH) {
-            throw new InvalidJobDescriptionException(
-                    "La descripción de la oferta supera el máximo de 8.000 caracteres.");
-        }
     }
 
     private static int matchPercentage(int mastered, int inProgress, int total) {

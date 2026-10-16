@@ -2,6 +2,7 @@ package com.skillmap.api.presentation.exception;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.skillmap.api.domain.exception.AiDailyLimitException;
 import com.skillmap.api.domain.exception.AiInvalidResponseException;
 import com.skillmap.api.domain.exception.AiNotConfiguredException;
 import com.skillmap.api.domain.exception.AiRateLimitException;
@@ -131,6 +132,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AiRateLimitException.class)
     public ResponseEntity<ErrorResponse> handleAiRateLimit(AiRateLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AiDailyLimitException.class)
+    public ResponseEntity<ErrorResponse> handleAiDailyLimit(AiDailyLimitException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ErrorResponse(ex.getMessage()));
     }
 

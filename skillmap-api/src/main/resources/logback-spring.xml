@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Logs en consola y en archivo. La app empaquetada no tiene consola: el archivo es lo único que queda.
+  En el perfil cloud solo consola: la plataforma (Render) recoge la salida estándar.
   - Archivo: ${skillmap.logs-dir}/skillmap.log (por defecto %APPDATA%\SkillMap\logs).
   - Rotación por tamaño: al pasar de ~5 MB, skillmap.log pasa a skillmap.1.log y este a
     skillmap.2.log; el más antiguo se borra. Como mucho 3 archivos (~15 MB).
@@ -26,24 +27,31 @@
         </encoder>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/skillmap.log</file>
-        <encoder>
-            <pattern>%replace(%replace(${FILE_LOG_PATTERN}){'${KEY_PATTERN}', '***'}){'${KEY_SETTING_PATTERN}', '$1=***'}%nopex</pattern>
-            <charset>UTF-8</charset>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-            <fileNamePattern>${LOG_DIR}/skillmap.%i.log</fileNamePattern>
-            <minIndex>1</minIndex>
-            <maxIndex>2</maxIndex>
-        </rollingPolicy>
-        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
-            <maxFileSize>5MB</maxFileSize>
-        </triggeringPolicy>
-    </appender>
+    <springProfile name="!cloud">
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_DIR}/skillmap.log</file>
+            <encoder>
+                <pattern>%replace(%replace(${FILE_LOG_PATTERN}){'${KEY_PATTERN}', '***'}){'${KEY_SETTING_PATTERN}', '$1=***'}%nopex</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+                <fileNamePattern>${LOG_DIR}/skillmap.%i.log</fileNamePattern>
+                <minIndex>1</minIndex>
+                <maxIndex>2</maxIndex>
+            </rollingPolicy>
+            <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+                <maxFileSize>5MB</maxFileSize>
+            </triggeringPolicy>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </root>
+    <springProfile name="cloud">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
 </configuration>
