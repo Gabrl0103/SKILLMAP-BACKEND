@@ -8,6 +8,7 @@ import com.skillmap.api.domain.repository.SkillRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -16,9 +17,10 @@ import java.util.List;
  * Carga datos de ejemplo al arrancar: habilidades y cinco objetivos laborales.
  * Solo actúa con la base vacía: la base persiste entre reinicios y no se debe pisar
  * la demanda calculada con ofertas reales. El progreso es de cada usuario (tabla user_skills):
- * aquí todas las habilidades nacen pendientes.
+ * aquí todas las habilidades nacen pendientes. Va antes de JobPostingSeeder.
  */
 @Component
+@Order(1)
 public class DataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);

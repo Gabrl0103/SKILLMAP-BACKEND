@@ -89,5 +89,10 @@ class JobSyncSchedulerTest {
         public JobStats getStats() {
             return new JobStats(postings, List.of(), null);
         }
+
+        @Override
+        public boolean recalculateDemand() {
+            return false;
+        }
     }
 }
