@@ -8,7 +8,9 @@
     3. Crea la imagen de la app con jpackage (sin ventana de consola, runtime propio).
     4. Copia scripts\stop.bat junto al ejecutable.
     5. Prueba de humo: arranca SkillMap.exe con datos temporales, en otro puerto, sin abrir
-       el navegador y sin llamar a Remotive, Arbeitnow, Gemini ni al servicio de IA en la nube; comprueba / y /api/skills.
+       el navegador, sin GEMINI_API_KEY y sin llamar a Remotive, Arbeitnow, Gemini ni al servicio de IA en la nube;
+       comprueba /, /api/health y, con un usuario temporal, /api/skills, las ofertas incluidas (/api/jobs/stats) y
+       que no hay key de Gemini (/api/settings).
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\build-app.ps1
@@ -196,8 +198,15 @@ if ($SkipSmokeTest) {
     )
     $outLog = Join-Path $testHome 'stdout.log'
     $errLog = Join-Path $testHome 'stderr.log'
-    $process = Start-Process -FilePath $AppExe -ArgumentList $appArgs -PassThru `
-        -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+    # Como en un equipo recién instalado: sin GEMINI_API_KEY (el proceso hereda el entorno de este script).
+    $previousGeminiKey = $env:GEMINI_API_KEY
+    $env:GEMINI_API_KEY = $null
+    try {
+        $process = Start-Process -FilePath $AppExe -ArgumentList $appArgs -PassThru `
+            -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+    } finally {
+        $env:GEMINI_API_KEY = $previousGeminiKey
+    }
     $failure = $null
     try {
         # DesktopLauncher escribe instance.port cuando la app está lista (datos sembrados incluidos).
@@ -230,12 +239,40 @@ if ($SkipSmokeTest) {
         }
         Write-Host '  / sirve la app (index.html, css, js, vendor)'
 
-        $skills = Invoke-RestMethod -Uri "$base/api/skills" -TimeoutSec 10
+        $health = Invoke-RestMethod -Uri "$base/api/health" -TimeoutSec 10
+        if ($health.status -ne 'ok') {
+            throw '/api/health no respondió status=ok'
+        }
+        Write-Host '  /api/health responde ok'
+
+        # El resto de /api exige sesión: un usuario temporal que solo existe en la base de esta prueba.
+        $register = @{
+            name = 'Prueba de humo'
+            email = "smoke-$([guid]::NewGuid().ToString('N'))@skillmap.local"
+            password = [guid]::NewGuid().ToString('N')
+        } | ConvertTo-Json
+        $session = Invoke-RestMethod -Method Post -Uri "$base/api/auth/register" -ContentType 'application/json' `
+            -Body $register -TimeoutSec 10
+        $auth = @{ Authorization = "Bearer $($session.token)" }
+
+        $skills = Invoke-RestMethod -Uri "$base/api/skills" -Headers $auth -TimeoutSec 10
         $count = @($skills).Count
         if ($count -lt 1) {
             throw '/api/skills respondió sin habilidades'
         }
         Write-Host "  /api/skills responde ($count habilidades)"
+
+        $stats = Invoke-RestMethod -Uri "$base/api/jobs/stats" -Headers $auth -TimeoutSec 10
+        if ($stats.totalJobs -lt 1) {
+            throw '/api/jobs/stats no tiene ofertas: no se importó seed/job-postings.json'
+        }
+        Write-Host "  /api/jobs/stats: $($stats.totalJobs) ofertas incluidas en la app"
+
+        $settings = Invoke-RestMethod -Uri "$base/api/settings" -Headers $auth -TimeoutSec 10
+        if ($settings.gemini.configured) {
+            throw "Hay una key de Gemini configurada (origen: $($settings.gemini.source)): la app debe arrancar sin ella"
+        }
+        Write-Host '  Sin key de Gemini: el Analizador usa el servicio de IA remoto (skillmap.ai.remote-url)'
 
         if (-not (Test-Path $logFile) -or -not (Select-String -Path $logFile -Pattern 'SkillMap lista' -Quiet)) {
             throw "No se escribió el log en $logFile"
