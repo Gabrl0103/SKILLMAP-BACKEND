@@ -147,5 +147,10 @@ class RemotiveAutoSyncTest {
                     new JobStats.SourceStats("Arbeitnow", 0, NOW, null),
                     new JobStats.SourceStats("Remotive", 0, remotiveLastSync, null)), remotiveLastSync);
         }
+
+        @Override
+        public boolean recalculateDemand() {
+            return false;
+        }
     }
 }

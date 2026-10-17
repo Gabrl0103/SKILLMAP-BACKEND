@@ -14,4 +14,6 @@ public interface JobService {
     JobSyncReport syncSource(String source);
     List<JobPosting> getNewestJobs(int limit);
     JobStats getStats();
+    /** Recalcula la demanda de las habilidades con las ofertas guardadas. @return false si no hay muestra suficiente */
+    boolean recalculateDemand();
 }

@@ -199,7 +199,8 @@ public class JobServiceImpl implements JobService {
     }
 
     /** demandPercentage = % de ofertas guardadas que mencionan la habilidad. @return false si no hay muestra suficiente */
-    private boolean recalculateDemand() {
+    @Override
+    public synchronized boolean recalculateDemand() {
         List<String> texts = postingRepository.findAll().stream().map(JobPosting::searchableText).toList();
         if (texts.size() < minPostingsForDemand) {
             log.info("Solo hay {} ofertas (mínimo {}): se mantiene la demanda anterior",
