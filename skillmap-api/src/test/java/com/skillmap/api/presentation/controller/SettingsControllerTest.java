@@ -1,6 +1,7 @@
 package com.skillmap.api.presentation.controller;
 
 import com.skillmap.api.infrastructure.persistence.AppSettingJpaRepository;
+import com.skillmap.api.infrastructure.persistence.entity.AppSettingEntity;
 import com.skillmap.api.support.TestAuth;
 import org.springframework.test.web.servlet.ResultActions;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.not;
@@ -89,6 +91,7 @@ class SettingsControllerTest {
                 .andExpect(jsonPath("$.theme").value("light"))
                 .andExpect(jsonPath("$.showIntro").value(true))
                 .andExpect(jsonPath("$.reduceMotion").value(false))
+                .andExpect(jsonPath("$.language").value("es"))
                 .andExpect(jsonPath("$.gemini.configured").value(false))
                 .andExpect(jsonPath("$.gemini.source").value("none"));
     }
@@ -123,6 +126,65 @@ class SettingsControllerTest {
         perform(get("/api/settings"))
                 .andExpect(jsonPath("$.theme").value("light"))
                 .andExpect(jsonPath("$.reduceMotion").value(false));
+    }
+
+    // ---------- Idioma ----------
+
+    @Test
+    void languageDefaultsToSpanish() throws Exception {
+        perform(get("/api/settings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.language").value("es"));
+    }
+
+    /** Una base de antes del idioma (la del usuario o la del instalable) no tiene la fila "language". */
+    @Test
+    void databaseWithoutLanguageRowKeepsItsSettingsAndUsesSpanish() throws Exception {
+        settingsTable.saveAll(List.of(
+                new AppSettingEntity("theme", "dark"),
+                new AppSettingEntity("show-intro", "false"),
+                new AppSettingEntity("reduce-motion", "true")));
+
+        perform(get("/api/settings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.theme").value("dark"))
+                .andExpect(jsonPath("$.showIntro").value(false))
+                .andExpect(jsonPath("$.reduceMotion").value(true))
+                .andExpect(jsonPath("$.language").value("es"));
+    }
+
+    @Test
+    void patchChangesLanguageAndKeepsTheRest() throws Exception {
+        perform(json(patch("/api/settings"), "{\"theme\":\"dark\"}")).andExpect(status().isOk());
+
+        perform(json(patch("/api/settings"), "{\"language\":\"en\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.language").value("en"))
+                .andExpect(jsonPath("$.theme").value("dark"));
+
+        perform(get("/api/settings"))
+                .andExpect(jsonPath("$.language").value("en"))
+                .andExpect(jsonPath("$.theme").value("dark"));
+
+        perform(json(patch("/api/settings"), "{\"language\":\"es\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.language").value("es"));
+    }
+
+    @Test
+    void patchRejectsInvalidLanguageWithClearMessage() throws Exception {
+        for (String invalid : List.of("fr", "", "EN-US", "español")) {
+            perform(json(patch("/api/settings"), "{\"language\":\"" + invalid + "\",\"theme\":\"dark\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("El idioma no es válido. Valores permitidos: es, en."));
+        }
+        perform(json(patch("/api/settings"), "{\"language\":42}"))
+                .andExpect(status().isBadRequest());
+
+        // Nada se aplicó a medias.
+        perform(get("/api/settings"))
+                .andExpect(jsonPath("$.language").value("es"))
+                .andExpect(jsonPath("$.theme").value("light"));
     }
 
     @Test
