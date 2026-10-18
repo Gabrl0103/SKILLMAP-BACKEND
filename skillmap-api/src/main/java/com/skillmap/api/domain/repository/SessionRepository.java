@@ -11,4 +11,9 @@ public interface SessionRepository {
     Optional<Session> findByTokenHash(String tokenHash);
     void deleteByTokenHash(String tokenHash);
     void deleteExpired(Instant now);
+
+    /** Cierra todas las sesiones del usuario salvo la de ese hash (la que hace la petición). */
+    void deleteByUserIdExcept(Long userId, String keepTokenHash);
+
+    void deleteByUserId(Long userId);
 }

@@ -30,16 +30,22 @@ public class UserEntity {
     @Column(nullable = false)
     private Instant createdAt;
 
+    // Nullable: ddl-auto=update la agrega a las bases existentes sin tocar sus filas (quedan sin titular).
+    // 160 = 80 caracteres aunque cada uno ocupe dos unidades UTF-16 (emojis).
+    @Column(length = 160)
+    private String headline;
+
     protected UserEntity() {
         // Requerido por JPA.
     }
 
-    public UserEntity(Long id, String name, String email, String passwordHash, Instant createdAt) {
+    public UserEntity(Long id, String name, String email, String passwordHash, Instant createdAt, String headline) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.passwordHash = passwordHash;
         this.createdAt = createdAt;
+        this.headline = headline;
     }
 
     public Long getId() { return id; }
@@ -47,4 +53,5 @@ public class UserEntity {
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
     public Instant getCreatedAt() { return createdAt; }
+    public String getHeadline() { return headline; }
 }

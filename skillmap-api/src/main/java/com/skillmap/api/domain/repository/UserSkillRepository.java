@@ -16,4 +16,7 @@ public interface UserSkillRepository {
 
     /** Borra el progreso del usuario en esa habilidad (vuelve a pendiente). Sin progreso guardado no hace nada. */
     void delete(Long userId, Long skillId);
+
+    /** Borra todo el progreso del usuario (al eliminar su cuenta). */
+    void deleteByUserId(Long userId);
 }
