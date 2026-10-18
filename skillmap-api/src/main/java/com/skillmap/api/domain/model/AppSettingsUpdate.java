@@ -4,6 +4,7 @@ package com.skillmap.api.domain.model;
 public record AppSettingsUpdate(
         Theme theme,
         Boolean showIntro,
-        Boolean reduceMotion
+        Boolean reduceMotion,
+        Language language
 ) {
 }

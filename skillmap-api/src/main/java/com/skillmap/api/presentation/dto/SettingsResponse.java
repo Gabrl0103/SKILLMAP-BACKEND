@@ -8,6 +8,7 @@ public record SettingsResponse(
         String theme,
         boolean showIntro,
         boolean reduceMotion,
+        String language,
         GeminiStatus gemini
 ) {
 

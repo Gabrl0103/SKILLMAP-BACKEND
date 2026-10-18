@@ -2,6 +2,7 @@ package com.skillmap.api.infrastructure.persistence;
 
 import com.skillmap.api.domain.exception.InvalidSettingsException;
 import com.skillmap.api.domain.model.AppSettings;
+import com.skillmap.api.domain.model.Language;
 import com.skillmap.api.domain.model.Theme;
 import com.skillmap.api.domain.repository.SettingsRepository;
 import com.skillmap.api.infrastructure.persistence.entity.AppSettingEntity;
@@ -21,6 +22,7 @@ public class SettingsRepositoryImpl implements SettingsRepository {
     static final String THEME = "theme";
     static final String SHOW_INTRO = "show-intro";
     static final String REDUCE_MOTION = "reduce-motion";
+    static final String LANGUAGE = "language";
 
     private final AppSettingJpaRepository jpaRepository;
 
@@ -37,7 +39,8 @@ public class SettingsRepositoryImpl implements SettingsRepository {
         return new AppSettings(
                 theme(stored.get(THEME), defaults.theme()),
                 bool(stored.get(SHOW_INTRO), defaults.showIntro()),
-                bool(stored.get(REDUCE_MOTION), defaults.reduceMotion()));
+                bool(stored.get(REDUCE_MOTION), defaults.reduceMotion()),
+                language(stored.get(LANGUAGE), defaults.language()));
     }
 
     @Override
@@ -45,7 +48,8 @@ public class SettingsRepositoryImpl implements SettingsRepository {
         jpaRepository.saveAll(List.of(
                 new AppSettingEntity(THEME, settings.theme().value()),
                 new AppSettingEntity(SHOW_INTRO, String.valueOf(settings.showIntro())),
-                new AppSettingEntity(REDUCE_MOTION, String.valueOf(settings.reduceMotion()))));
+                new AppSettingEntity(REDUCE_MOTION, String.valueOf(settings.reduceMotion())),
+                new AppSettingEntity(LANGUAGE, settings.language().value())));
     }
 
     /** Un valor guardado que no se entiende (ej. editado a mano) no rompe la pantalla: vale el de por defecto. */
@@ -57,6 +61,19 @@ public class SettingsRepositoryImpl implements SettingsRepository {
             return Theme.fromValue(stored);
         } catch (InvalidSettingsException e) {
             log.warn("Ajuste '{}' guardado no válido; se usa el valor por defecto", THEME);
+            return fallback;
+        }
+    }
+
+    /** Igual que el tema. Una base de antes del idioma no tiene esta fila: vale "es". */
+    private static Language language(String stored, Language fallback) {
+        if (stored == null) {
+            return fallback;
+        }
+        try {
+            return Language.fromValue(stored);
+        } catch (InvalidSettingsException e) {
+            log.warn("Ajuste '{}' guardado no válido; se usa el valor por defecto", LANGUAGE);
             return fallback;
         }
     }
