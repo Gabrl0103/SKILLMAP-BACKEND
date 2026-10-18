@@ -113,13 +113,15 @@ class AuthControllerTest {
             "{\"name\":\"Ana\",\"email\":\"%e\",\"password\":\"Secreta-De-Prueba-987\"}",
             "{\"name\":\"   \",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
             "{\"name\":\"%n\",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
+            "{\"name\":\"%m\",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
             "{}"
     })
     void invalidRegistrationsReturn400WithMessage(String template) throws Exception {
         String longPassword = "p".repeat(73);
         String body = template.replace("%s", longPassword)
                 .replace("%e", "a".repeat(245) + "@test.local")
-                .replace("%n", "n".repeat(61));
+                .replace("%n", "n".repeat(61))
+                .replace("%m", "😀".repeat(31)); // 31 caracteres, 62 unidades UTF-16: no cabe en la columna
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").isString())
