@@ -11,6 +11,7 @@ import com.skillmap.api.domain.exception.AiTimeoutException;
 import com.skillmap.api.domain.exception.AuthenticationRequiredException;
 import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
+import com.skillmap.api.domain.exception.IncorrectPasswordException;
 import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
 import com.skillmap.api.domain.exception.InvalidSettingsException;
@@ -70,6 +71,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidUserDataException.class)
     public ResponseEntity<ErrorResponse> handleInvalidUserData(InvalidUserDataException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(IncorrectPasswordException.class)
+    public ResponseEntity<ErrorResponse> handleIncorrectPassword(IncorrectPasswordException ex) {
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 
