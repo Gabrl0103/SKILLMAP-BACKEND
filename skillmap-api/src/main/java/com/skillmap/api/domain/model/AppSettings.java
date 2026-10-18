@@ -9,13 +9,15 @@ import java.util.Objects;
 public record AppSettings(
         Theme theme,
         boolean showIntro,
-        boolean reduceMotion
+        boolean reduceMotion,
+        Language language
 ) {
 
-    public static final AppSettings DEFAULTS = new AppSettings(Theme.LIGHT, true, false);
+    public static final AppSettings DEFAULTS = new AppSettings(Theme.LIGHT, true, false, Language.ES);
 
     public AppSettings {
         Objects.requireNonNull(theme, "theme");
+        Objects.requireNonNull(language, "language");
     }
 
     /** Aplica solo los campos presentes en el cambio. */
@@ -23,6 +25,7 @@ public record AppSettings(
         return new AppSettings(
                 update.theme() != null ? update.theme() : theme,
                 update.showIntro() != null ? update.showIntro() : showIntro,
-                update.reduceMotion() != null ? update.reduceMotion() : reduceMotion);
+                update.reduceMotion() != null ? update.reduceMotion() : reduceMotion,
+                update.language() != null ? update.language() : language);
     }
 }

@@ -5,6 +5,7 @@ import com.skillmap.api.domain.model.AppSettings;
 import com.skillmap.api.domain.model.AppSettingsUpdate;
 import com.skillmap.api.domain.model.GeminiApiKey;
 import com.skillmap.api.domain.model.GeminiKeySource;
+import com.skillmap.api.domain.model.Language;
 import com.skillmap.api.domain.model.Theme;
 import com.skillmap.api.domain.port.GeminiKeyStore;
 import com.skillmap.api.domain.repository.SettingsRepository;
@@ -28,10 +29,11 @@ class SettingsServiceImplTest {
 
     @Test
     void partialUpdateKeepsOtherFieldsAndPersists() {
-        service.updateSettings(new AppSettingsUpdate(null, null, true));
-        AppSettings updated = service.updateSettings(new AppSettingsUpdate(Theme.DARK, null, null));
+        service.updateSettings(new AppSettingsUpdate(null, null, true, null));
+        service.updateSettings(new AppSettingsUpdate(null, null, null, Language.EN));
+        AppSettings updated = service.updateSettings(new AppSettingsUpdate(Theme.DARK, null, null, null));
 
-        assertThat(updated).isEqualTo(new AppSettings(Theme.DARK, true, true));
+        assertThat(updated).isEqualTo(new AppSettings(Theme.DARK, true, true, Language.EN));
         assertThat(repository.stored).isEqualTo(updated);
     }
 
