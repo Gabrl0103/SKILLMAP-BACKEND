@@ -43,6 +43,7 @@ class JobAnalyzerServiceImplTest {
         }
         @Override public void save(UserSkill userSkill) { }
         @Override public void delete(Long userId, Long skillId) { }
+        @Override public void deleteByUserId(Long userId) { }
     };
 
     private JobAnalyzerServiceImpl serviceReturning(String... skills) {

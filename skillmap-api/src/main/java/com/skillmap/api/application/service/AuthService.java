@@ -18,4 +18,16 @@ public interface AuthService {
     Optional<Long> authenticate(String token);
 
     User getUser(Long userId);
+
+    /** Cambia el nombre y/o el titular; un null deja ese campo como estaba. */
+    User updateProfile(Long userId, String name, String headline);
+
+    /**
+     * Cambia la contraseña si currentPassword es la actual (un fallo cuenta en el mismo límite que el login) y
+     * cierra las demás sesiones del usuario; la del token dado sigue abierta.
+     */
+    void changePassword(Long userId, String token, String currentPassword, String newPassword, String clientIp);
+
+    /** Con la contraseña correcta borra el usuario, sus sesiones y su progreso. Nada global. */
+    void deleteAccount(Long userId, String password, String clientIp);
 }

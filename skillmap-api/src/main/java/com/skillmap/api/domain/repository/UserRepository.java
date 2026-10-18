@@ -10,6 +10,8 @@ public interface UserRepository {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 
-    /** Lanza EmailAlreadyRegisteredException si el correo ya está en uso. */
+    /** Crea (sin id) o actualiza (con id). Lanza EmailAlreadyRegisteredException si el correo ya está en uso. */
     User save(User user);
+
+    void deleteById(Long id);
 }

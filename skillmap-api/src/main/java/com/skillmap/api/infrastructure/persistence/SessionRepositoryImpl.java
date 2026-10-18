@@ -38,4 +38,14 @@ public class SessionRepositoryImpl implements SessionRepository {
     public void deleteExpired(Instant now) {
         jpaRepository.deleteExpired(now);
     }
+
+    @Override
+    public void deleteByUserIdExcept(Long userId, String keepTokenHash) {
+        jpaRepository.deleteByUserIdExcept(userId, keepTokenHash);
+    }
+
+    @Override
+    public void deleteByUserId(Long userId) {
+        jpaRepository.deleteByUserId(userId);
+    }
 }

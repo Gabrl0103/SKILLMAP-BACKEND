@@ -10,4 +10,5 @@ public interface UserSkillJpaRepository extends JpaRepository<UserSkillEntity, L
     List<UserSkillEntity> findByUserId(Long userId);
     Optional<UserSkillEntity> findByUserIdAndSkillId(Long userId, Long skillId);
     void deleteByUserIdAndSkillId(Long userId, Long skillId);
+    void deleteByUserId(Long userId);
 }

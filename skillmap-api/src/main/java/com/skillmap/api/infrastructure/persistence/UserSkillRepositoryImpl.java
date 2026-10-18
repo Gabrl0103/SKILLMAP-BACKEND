@@ -39,4 +39,10 @@ public class UserSkillRepositoryImpl implements UserSkillRepository {
     public void delete(Long userId, Long skillId) {
         jpaRepository.deleteByUserIdAndSkillId(userId, skillId);
     }
+
+    @Override
+    @Transactional
+    public void deleteByUserId(Long userId) {
+        jpaRepository.deleteByUserId(userId);
+    }
 }

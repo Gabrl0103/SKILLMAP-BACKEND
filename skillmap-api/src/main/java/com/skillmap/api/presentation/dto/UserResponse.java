@@ -1,4 +1,5 @@
 package com.skillmap.api.presentation.dto;
 
-public record UserResponse(Long id, String name, String email) {
+/** headline es null si el usuario no tiene titular. */
+public record UserResponse(Long id, String name, String email, String headline) {
 }
