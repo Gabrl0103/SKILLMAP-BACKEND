@@ -29,12 +29,12 @@ public final class UserFactory {
     public static User createNew(String name, String email, String passwordHash, Instant createdAt) {
         validateName(name);
         validateEmail(email);
-        return new User(null, name.strip(), normalizeEmail(email), passwordHash, createdAt, null);
+        return new User(null, name.strip(), normalizeEmail(email), passwordHash, createdAt, null, null);
     }
 
     public static User reconstruct(Long id, String name, String email, String passwordHash, Instant createdAt,
-                                   String headline) {
-        return new User(id, name, email, passwordHash, createdAt, headline);
+                                   String headline, Long goalId) {
+        return new User(id, name, email, passwordHash, createdAt, headline, goalId);
     }
 
     public static String normalizeEmail(String email) {
