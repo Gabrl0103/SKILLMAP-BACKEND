@@ -16,6 +16,7 @@ import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
 import com.skillmap.api.domain.exception.InvalidProfileDataException;
 import com.skillmap.api.domain.exception.InvalidSettingsException;
+import com.skillmap.api.domain.exception.InvalidSkillStatusException;
 import com.skillmap.api.domain.exception.InvalidUserDataException;
 import com.skillmap.api.domain.exception.JobSourceException;
 import com.skillmap.api.domain.exception.JobSourceInvalidResponseException;
@@ -63,6 +64,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidProfileDataException.class)
     public ResponseEntity<ErrorResponse> handleInvalidProfileData(InvalidProfileDataException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidSkillStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSkillStatus(InvalidSkillStatusException ex) {
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 

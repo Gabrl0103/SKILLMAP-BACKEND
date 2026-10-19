@@ -66,4 +66,18 @@ public class SkillServiceImpl implements SkillService {
         userSkillRepository.delete(userId, id);
         return skill.withStatus(SkillStatus.PENDING);
     }
+
+    @Override
+    public Skill updateSkillStatus(Long userId, Long id, SkillStatus status) {
+        return switch (status) {
+            case MASTERED -> markSkillAsMastered(userId, id);
+            case PENDING -> unmarkSkillAsMastered(userId, id);
+            case IN_PROGRESS -> {
+                Skill skill = getSkillById(userId, id);
+                // Misma fila de progreso que una dominada: guardar otro estado la reemplaza.
+                userSkillRepository.save(new UserSkill(userId, id, SkillStatus.IN_PROGRESS));
+                yield skill.withStatus(SkillStatus.IN_PROGRESS);
+            }
+        };
+    }
 }
