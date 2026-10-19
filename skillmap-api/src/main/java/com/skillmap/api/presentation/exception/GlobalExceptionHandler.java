@@ -14,12 +14,14 @@ import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
 import com.skillmap.api.domain.exception.IncorrectPasswordException;
 import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
+import com.skillmap.api.domain.exception.InvalidProfileDataException;
 import com.skillmap.api.domain.exception.InvalidSettingsException;
 import com.skillmap.api.domain.exception.InvalidUserDataException;
 import com.skillmap.api.domain.exception.JobSourceException;
 import com.skillmap.api.domain.exception.JobSourceInvalidResponseException;
 import com.skillmap.api.domain.exception.JobSourceRateLimitException;
 import com.skillmap.api.domain.exception.JobSourceUnavailableException;
+import com.skillmap.api.domain.exception.ProfileItemNotFoundException;
 import com.skillmap.api.domain.exception.SettingsStorageException;
 import com.skillmap.api.domain.exception.SkillNotFoundException;
 import com.skillmap.api.domain.exception.TooManyLoginAttemptsException;
@@ -52,6 +54,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CareerGoalNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleGoalNotFound(CareerGoalNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ProfileItemNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleProfileItemNotFound(ProfileItemNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidProfileDataException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidProfileData(InvalidProfileDataException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
