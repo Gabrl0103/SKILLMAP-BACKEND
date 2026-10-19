@@ -22,6 +22,9 @@ public interface AuthService {
     /** Cambia el nombre y/o el titular; un null deja ese campo como estaba. */
     User updateProfile(Long userId, String name, String headline);
 
+    /** Cambia el objetivo profesional. Sin objetivo: 400; uno que no existe: 404. El progreso no cambia. */
+    User updateGoal(Long userId, Long goalId);
+
     /**
      * Cambia la contraseña si currentPassword es la actual (un fallo cuenta en el mismo límite que el login) y
      * cierra las demás sesiones del usuario; la del token dado sigue abierta.

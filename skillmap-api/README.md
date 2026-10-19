@@ -49,6 +49,7 @@ Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador po
 - `GET  /api/skills/{id}` — detalle de una habilidad
 - `PATCH /api/skills/{id}/master` — marca una habilidad como dominada
 - `PUT /api/skills/{id}/status` — `{"status":"PENDING"|"IN_PROGRESS"|"MASTERED"}`: pendiente, aprendiendo o dominada (solo para el usuario)
+- `PUT /api/auth/me/goal` — `{"goalId": n}`: objetivo profesional del usuario (sale como `goalId` en `/api/auth/me`); su progreso no cambia
 
 ## Próximos commits
 - CareerGoal + GoalSkill (relación objetivo–habilidad y % de demanda)

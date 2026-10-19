@@ -9,6 +9,7 @@ import com.skillmap.api.presentation.dto.ChangePasswordRequest;
 import com.skillmap.api.presentation.dto.DeleteAccountRequest;
 import com.skillmap.api.presentation.dto.LoginRequest;
 import com.skillmap.api.presentation.dto.RegisterRequest;
+import com.skillmap.api.presentation.dto.UpdateGoalRequest;
 import com.skillmap.api.presentation.dto.UpdateProfileRequest;
 import com.skillmap.api.presentation.dto.UserResponse;
 import com.skillmap.api.presentation.filter.AuthenticationFilter;
@@ -72,6 +73,13 @@ public class AuthController {
         return toResponse(authService.updateProfile(userId, request.name(), request.headline()));
     }
 
+    /** Objetivo profesional del usuario ({"goalId": n}). Su progreso por habilidad se conserva. */
+    @PutMapping("/me/goal")
+    public UserResponse updateGoal(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
+                                   @RequestBody(required = false) UpdateGoalRequest request) {
+        return toResponse(authService.updateGoal(userId, request == null ? null : request.goalId()));
+    }
+
     /** La sesión de esta petición sigue abierta; las demás del usuario se cierran. */
     @PutMapping("/me/password")
     public ResponseEntity<Void> changePassword(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
@@ -97,6 +105,6 @@ public class AuthController {
     }
 
     private static UserResponse toResponse(User user) {
-        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getHeadline());
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getHeadline(), user.getGoalId());
     }
 }

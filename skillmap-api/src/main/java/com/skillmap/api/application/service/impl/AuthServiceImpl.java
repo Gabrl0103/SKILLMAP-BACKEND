@@ -2,8 +2,10 @@ package com.skillmap.api.application.service.impl;
 
 import com.skillmap.api.application.service.AuthService;
 import com.skillmap.api.domain.exception.AuthenticationRequiredException;
+import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
 import com.skillmap.api.domain.exception.IncorrectPasswordException;
+import com.skillmap.api.domain.exception.InvalidUserDataException;
 import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.TooManyLoginAttemptsException;
 import com.skillmap.api.domain.factory.UserFactory;
@@ -13,6 +15,7 @@ import com.skillmap.api.domain.model.User;
 import com.skillmap.api.domain.port.LoginAttemptLimiter;
 import com.skillmap.api.domain.port.PasswordHasher;
 import com.skillmap.api.domain.port.TokenGenerator;
+import com.skillmap.api.domain.repository.CareerGoalRepository;
 import com.skillmap.api.domain.repository.ProfileLinkRepository;
 import com.skillmap.api.domain.repository.ProfileProjectRepository;
 import com.skillmap.api.domain.repository.SessionRepository;
@@ -41,6 +44,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserSkillRepository userSkillRepository;
     private final ProfileLinkRepository profileLinkRepository;
     private final ProfileProjectRepository profileProjectRepository;
+    private final CareerGoalRepository careerGoalRepository;
     private final PasswordHasher passwordHasher;
     private final TokenGenerator tokenGenerator;
     private final LoginAttemptLimiter attemptLimiter;
@@ -54,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
                            UserSkillRepository userSkillRepository,
                            ProfileLinkRepository profileLinkRepository,
                            ProfileProjectRepository profileProjectRepository,
+                           CareerGoalRepository careerGoalRepository,
                            PasswordHasher passwordHasher,
                            TokenGenerator tokenGenerator,
                            LoginAttemptLimiter attemptLimiter,
@@ -64,6 +69,7 @@ public class AuthServiceImpl implements AuthService {
         this.userSkillRepository = userSkillRepository;
         this.profileLinkRepository = profileLinkRepository;
         this.profileProjectRepository = profileProjectRepository;
+        this.careerGoalRepository = careerGoalRepository;
         this.passwordHasher = passwordHasher;
         this.tokenGenerator = tokenGenerator;
         this.attemptLimiter = attemptLimiter;
@@ -142,6 +148,18 @@ public class AuthServiceImpl implements AuthService {
         return userRepository.save(user.withProfile(
                 name == null ? user.getName() : name.strip(),
                 headline == null ? user.getHeadline() : UserFactory.normalizeHeadline(headline)));
+    }
+
+    @Override
+    public User updateGoal(Long userId, Long goalId) {
+        User user = getUser(userId);
+        if (goalId == null) {
+            throw new InvalidUserDataException("Elige un objetivo profesional.");
+        }
+        if (careerGoalRepository.findById(goalId).isEmpty()) {
+            throw new CareerGoalNotFoundException(goalId);
+        }
+        return userRepository.save(user.withGoal(goalId));
     }
 
     @Override

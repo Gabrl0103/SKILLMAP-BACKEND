@@ -35,17 +35,23 @@ public class UserEntity {
     @Column(length = 160)
     private String headline;
 
+    // Objetivo profesional elegido. Nullable por lo mismo que headline: las cuentas existentes quedan sin objetivo.
+    @Column(name = "goal_id")
+    private Long goalId;
+
     protected UserEntity() {
         // Requerido por JPA.
     }
 
-    public UserEntity(Long id, String name, String email, String passwordHash, Instant createdAt, String headline) {
+    public UserEntity(Long id, String name, String email, String passwordHash, Instant createdAt, String headline,
+                      Long goalId) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.passwordHash = passwordHash;
         this.createdAt = createdAt;
         this.headline = headline;
+        this.goalId = goalId;
     }
 
     public Long getId() { return id; }
@@ -54,4 +60,5 @@ public class UserEntity {
     public String getPasswordHash() { return passwordHash; }
     public Instant getCreatedAt() { return createdAt; }
     public String getHeadline() { return headline; }
+    public Long getGoalId() { return goalId; }
 }
