@@ -13,6 +13,8 @@ import com.skillmap.api.domain.model.User;
 import com.skillmap.api.domain.port.LoginAttemptLimiter;
 import com.skillmap.api.domain.port.PasswordHasher;
 import com.skillmap.api.domain.port.TokenGenerator;
+import com.skillmap.api.domain.repository.ProfileLinkRepository;
+import com.skillmap.api.domain.repository.ProfileProjectRepository;
 import com.skillmap.api.domain.repository.SessionRepository;
 import com.skillmap.api.domain.repository.UserRepository;
 import com.skillmap.api.domain.repository.UserSkillRepository;
@@ -37,6 +39,8 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
     private final UserSkillRepository userSkillRepository;
+    private final ProfileLinkRepository profileLinkRepository;
+    private final ProfileProjectRepository profileProjectRepository;
     private final PasswordHasher passwordHasher;
     private final TokenGenerator tokenGenerator;
     private final LoginAttemptLimiter attemptLimiter;
@@ -48,6 +52,8 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(UserRepository userRepository,
                            SessionRepository sessionRepository,
                            UserSkillRepository userSkillRepository,
+                           ProfileLinkRepository profileLinkRepository,
+                           ProfileProjectRepository profileProjectRepository,
                            PasswordHasher passwordHasher,
                            TokenGenerator tokenGenerator,
                            LoginAttemptLimiter attemptLimiter,
@@ -56,6 +62,8 @@ public class AuthServiceImpl implements AuthService {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.userSkillRepository = userSkillRepository;
+        this.profileLinkRepository = profileLinkRepository;
+        this.profileProjectRepository = profileProjectRepository;
         this.passwordHasher = passwordHasher;
         this.tokenGenerator = tokenGenerator;
         this.attemptLimiter = attemptLimiter;
@@ -161,6 +169,8 @@ public class AuthServiceImpl implements AuthService {
         }
         checkPassword(user, password, attemptKey);
         userSkillRepository.deleteByUserId(userId);
+        profileLinkRepository.deleteByUserId(userId);
+        profileProjectRepository.deleteByUserId(userId);
         sessionRepository.deleteByUserId(userId);
         userRepository.deleteById(userId);
     }

@@ -19,6 +19,8 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -28,7 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Una base de antes del titular (tabla users sin la columna headline, como la de una instalación
  * anterior) sigue funcionando: al arrancar se agrega la columna, la cuenta entra con su contraseña
- * de siempre y queda sin titular hasta que lo edite.
+ * de siempre y queda sin titular hasta que lo edite. Tampoco tiene las tablas de enlaces y proyectos
+ * del perfil: se crean al arrancar sin tocar las que ya había.
  */
 @SpringBootTest(properties = {
         "skillmap.home=${java.io.tmpdir}/skillmap-legacy-users-test",
@@ -67,6 +70,34 @@ class LegacyUsersTableTest {
             }
         }
         registry.add("spring.datasource.url", () -> URL);
+    }
+
+    @Test
+    void existingDatabaseGetsTheProfileTablesAndTheAccountCanUseThem() throws Exception {
+        try (Connection connection = DriverManager.getConnection(URL, "sa", "");
+             Statement statement = connection.createStatement();
+             var tables = statement.executeQuery("select count(*) from information_schema.tables where table_name in "
+                     + "('PROFILE_LINKS', 'PROFILE_PROJECTS', 'PROFILE_PROJECT_TAGS')")) {
+            tables.next();
+            assertThat(tables.getInt(1)).isEqualTo(3);
+        }
+        String token = JsonPath.read(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + EMAIL + "\",\"password\":\"" + PASSWORD + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(), "$.token");
+
+        mvc.perform(get("/api/profile/links").with(TestAuth.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+        mvc.perform(post("/api/profile/links").with(TestAuth.bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"label\":\"GitHub\",\"url\":\"https://github.com/antigua\"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/profile/projects").with(TestAuth.bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Proyecto\",\"tags\":[\"Java\"]}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.tags[0]").value("Java"));
+        mvc.perform(get("/api/profile/projects").with(TestAuth.bearer(token)))
+                .andExpect(jsonPath("$", hasSize(1)));
     }
 
     @Test
