@@ -1,13 +1,17 @@
 package com.skillmap.api.presentation.controller;
 
 import com.skillmap.api.application.service.SkillService;
+import com.skillmap.api.domain.model.SkillStatus;
 import com.skillmap.api.presentation.filter.AuthenticationFilter;
 import com.skillmap.api.presentation.dto.SkillResponse;
+import com.skillmap.api.presentation.dto.UpdateSkillStatusRequest;
 import com.skillmap.api.presentation.mapper.SkillResponseMapper;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,5 +60,14 @@ public class SkillController {
     public SkillResponse unmarkAsMastered(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
                                           @PathVariable Long id) {
         return SkillResponseMapper.toResponse(skillService.unmarkSkillAsMastered(userId, id));
+    }
+
+    /** Pendiente, aprendiendo o dominada (solo para este usuario). Sin cuerpo o con otro estado: 400. */
+    @PutMapping("/{id}/status")
+    public SkillResponse updateStatus(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
+                                      @PathVariable Long id,
+                                      @RequestBody(required = false) UpdateSkillStatusRequest request) {
+        SkillStatus status = SkillStatus.fromValue(request == null ? null : request.status());
+        return SkillResponseMapper.toResponse(skillService.updateSkillStatus(userId, id, status));
     }
 }

@@ -48,6 +48,7 @@ Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador po
 - `GET  /api/skills` — lista todas las habilidades
 - `GET  /api/skills/{id}` — detalle de una habilidad
 - `PATCH /api/skills/{id}/master` — marca una habilidad como dominada
+- `PUT /api/skills/{id}/status` — `{"status":"PENDING"|"IN_PROGRESS"|"MASTERED"}`: pendiente, aprendiendo o dominada (solo para el usuario)
 
 ## Próximos commits
 - CareerGoal + GoalSkill (relación objetivo–habilidad y % de demanda)
