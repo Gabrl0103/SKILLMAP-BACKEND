@@ -3,6 +3,7 @@ package com.skillmap.api.presentation.exception;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.skillmap.api.domain.exception.AiDailyLimitException;
+import com.skillmap.api.domain.exception.AnalysisHistoryNotFoundException;
 import com.skillmap.api.domain.exception.AiInvalidResponseException;
 import com.skillmap.api.domain.exception.AiNotConfiguredException;
 import com.skillmap.api.domain.exception.AiRateLimitException;
@@ -12,6 +13,7 @@ import com.skillmap.api.domain.exception.AuthenticationRequiredException;
 import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
 import com.skillmap.api.domain.exception.IncorrectPasswordException;
+import com.skillmap.api.domain.exception.InvalidAnalysisHistoryLimitException;
 import com.skillmap.api.domain.exception.InvalidHistoryRangeException;
 import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
@@ -63,6 +65,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(ex.getMessage()));
     }
 
+    @ExceptionHandler(AnalysisHistoryNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAnalysisHistoryNotFound(AnalysisHistoryNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidProfileDataException.class)
     public ResponseEntity<ErrorResponse> handleInvalidProfileData(InvalidProfileDataException ex) {
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
@@ -75,6 +82,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidHistoryRangeException.class)
     public ResponseEntity<ErrorResponse> handleInvalidHistoryRange(InvalidHistoryRangeException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidAnalysisHistoryLimitException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAnalysisHistoryLimit(InvalidAnalysisHistoryLimitException ex) {
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 
