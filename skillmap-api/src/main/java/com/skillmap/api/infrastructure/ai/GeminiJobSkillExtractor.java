@@ -143,6 +143,11 @@ public class GeminiJobSkillExtractor implements JobSkillExtractor {
         return skills;
     }
 
+    @Override
+    public String engine() {
+        return "gemini";
+    }
+
     /** Como mucho una llamada al modelo principal y otra al de respaldo. */
     private List<String> extractWithFallback(String jobDescription, Collection<String> knownSkills, String apiKey) {
         Map<String, Object> request = buildRequest(jobDescription, knownSkills);

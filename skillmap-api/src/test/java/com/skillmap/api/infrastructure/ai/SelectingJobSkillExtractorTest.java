@@ -59,6 +59,15 @@ class SelectingJobSkillExtractorTest {
     }
 
     @Test
+    void engineNamesTheSelectedExtractor() {
+        assertThat(selector.engine()).isEqualTo("remote");
+
+        environment.setProperty("GEMINI_API_KEY", "own-key");
+
+        assertThat(selector.engine()).isEqualTo(gemini.engine());
+    }
+
+    @Test
     void keySavedInSettingsIsUsedWithoutRestarting() throws Exception {
         assertThat(selector.selected()).isNotSameAs(gemini);
 

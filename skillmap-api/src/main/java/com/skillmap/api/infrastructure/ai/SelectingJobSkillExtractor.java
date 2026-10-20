@@ -45,6 +45,11 @@ public class SelectingJobSkillExtractor implements JobSkillExtractor {
         return selected().extractSkills(jobDescription, knownSkills);
     }
 
+    @Override
+    public String engine() {
+        return selected().engine();
+    }
+
     JobSkillExtractor selected() {
         return apiKeyProvider.getApiKey().isPresent() ? gemini : remote;
     }

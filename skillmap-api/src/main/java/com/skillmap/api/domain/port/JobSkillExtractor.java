@@ -17,4 +17,9 @@ public interface JobSkillExtractor {
      * @return nombres canónicos y cortos de las habilidades técnicas, sin duplicados
      */
     List<String> extractSkills(String jobDescription, Collection<String> knownSkills);
+
+    /** Nombre corto de quién extrae ("gemini", "remote"); lo guarda el historial del Analizador. */
+    default String engine() {
+        return "ia";
+    }
 }
