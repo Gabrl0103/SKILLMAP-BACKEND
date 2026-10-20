@@ -1,13 +1,13 @@
 ﻿<#
 .SYNOPSIS
-    Genera la app de escritorio de Windows (dist\SkillMap\SkillMap.exe) con jpackage.
+    Genera la app de escritorio de Windows (dist\Cenit\Cenit.exe) con jpackage.
 
 .DESCRIPTION
     1. Copia el frontend (index.html, css, js, assets, vendor) a src\main\resources\static.
     2. Compila el jar de Spring Boot (mvnw clean package -DskipTests).
     3. Crea la imagen de la app con jpackage (sin ventana de consola, runtime propio).
     4. Copia scripts\stop.bat junto al ejecutable.
-    5. Prueba de humo: arranca SkillMap.exe con datos temporales, en otro puerto, sin abrir
+    5. Prueba de humo: arranca Cenit.exe con datos temporales, en otro puerto, sin abrir
        el navegador, sin GEMINI_API_KEY y sin llamar a Remotive, Arbeitnow, Gemini ni al servicio de IA en la nube;
        comprueba /, /api/health y, con un usuario temporal, /api/skills, las ofertas incluidas (/api/jobs/stats) y
        que no hay key de Gemini (/api/settings).
@@ -29,7 +29,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$AppName = 'SkillMap'
+$AppName = 'Cenit'
 $ProjectDir = Split-Path -Parent $PSScriptRoot
 $StaticDir = Join-Path $ProjectDir 'src\main\resources\static'
 $DistDir = Join-Path $ProjectDir 'dist'
@@ -54,7 +54,7 @@ function Write-Step([string]$Message) {
 }
 
 function Get-RunningApp {
-    # Solo instancias de ESTE ejecutable (dist\SkillMap\SkillMap.exe), nunca otros java.exe.
+    # Solo instancias de ESTE ejecutable (dist\Cenit\Cenit.exe), nunca otros java.exe.
     Get-Process -Name $AppName -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -and ($_.Path -ieq $AppExe) }
 }
@@ -133,8 +133,8 @@ $jpackageArgs = @(
     '--type', 'app-image',
     '--name', $AppName,
     '--app-version', $appVersion,
-    '--vendor', 'SkillMap',
-    '--description', 'SkillMap',
+    '--vendor', 'Cenit',
+    '--description', 'Cenit: tu ruta hacia el cenit de tu carrera',
     '--dest', $DistDir,
     '--input', $inputDir,
     '--main-jar', $jar.Name,
@@ -167,8 +167,8 @@ Write-Host "  stop.bat cierra $exeName"
 if ($SkipSmokeTest) {
     Write-Step 'Prueba de humo omitida (-SkipSmokeTest)'
 } else {
-    Write-Step 'Prueba de humo de SkillMap.exe'
-    # Datos temporales: no se toca %APPDATA%\SkillMap (ni la base, ni config.properties, ni los logs).
+    Write-Step 'Prueba de humo de Cenit.exe'
+    # Datos temporales: no se toca %APPDATA%\SkillMap, la carpeta de datos de la app (ni la base, ni config.properties, ni los logs).
     $testHome = Join-Path ([IO.Path]::GetTempPath()) ("skillmap-smoke-" + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $testHome | Out-Null
     $portFile = Join-Path $testHome 'data\instance.port'
@@ -213,10 +213,10 @@ if ($SkipSmokeTest) {
         $deadline = (Get-Date).AddSeconds(120)
         while (-not (Test-Path $portFile)) {
             if ($process.HasExited) {
-                throw "SkillMap.exe terminó al arrancar (código $($process.ExitCode))"
+                throw "Cenit.exe terminó al arrancar (código $($process.ExitCode))"
             }
             if ((Get-Date) -gt $deadline) {
-                throw 'SkillMap.exe no estuvo lista en 120 s'
+                throw 'Cenit.exe no estuvo lista en 120 s'
             }
             Start-Sleep -Milliseconds 500
         }
@@ -274,7 +274,7 @@ if ($SkipSmokeTest) {
         }
         Write-Host '  Sin key de Gemini: el Analizador usa el servicio de IA remoto (skillmap.ai.remote-url)'
 
-        if (-not (Test-Path $logFile) -or -not (Select-String -Path $logFile -Pattern 'SkillMap lista' -Quiet)) {
+        if (-not (Test-Path $logFile) -or -not (Select-String -Path $logFile -Pattern 'Cenit lista' -Quiet)) {
             throw "No se escribió el log en $logFile"
         }
         Write-Host '  Log en logs\skillmap.log de la carpeta temporal'

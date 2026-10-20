@@ -1,7 +1,7 @@
 # skillmap-api
 
 Backend compartido (Java + Spring Boot) para los clientes **Desktop**, **Mobile**
-y **Wearable** del proyecto SkillMap. Arquitectura limpia por capas:
+y **Wearable** de **Cenit** (antes SkillMap), "Tu ruta hacia el cenit de tu carrera". Arquitectura limpia por capas:
 
 ```
 domain/          → entidades y reglas de negocio puras (sin Spring, sin JPA)
@@ -16,7 +16,8 @@ presentation/    → controladores REST que consumen los 3 clientes
 ```
 Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador por defecto).
 
-- **Datos**: H2 en modo archivo en `%APPDATA%\SkillMap\data` (`~/SkillMap/data` fuera de Windows).
+- **Datos**: H2 en modo archivo en `%APPDATA%\SkillMap\data` (`~/SkillMap/data` fuera de Windows). La carpeta
+  conserva el nombre anterior de la app a propósito: quien ya la usaba no pierde sus datos.
   Se cambia con `--skillmap.home=...` o solo la base con `--skillmap.data-dir=...`.
   Consola en `/h2-console` (JDBC URL: `jdbc:h2:file:<carpeta de datos>/skillmap`).
 - **Puerto**: 8080; si está ocupado, el siguiente libre (hasta 8089) o uno al azar.
@@ -39,9 +40,9 @@ Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador po
 - **Logs**: consola y `%APPDATA%\SkillMap\logs\skillmap.log` (`skillmap.logs-dir`). Rota al pasar de ~5 MB:
   `skillmap.log`, `skillmap.1.log` y `skillmap.2.log` como mucho. La key de Gemini se tapa (`***`) en todos los logs.
 - **Empaquetar** (Windows, JDK con jpackage): `powershell -ExecutionPolicy Bypass -File scripts\build-app.ps1`
-  genera `dist\SkillMap\SkillMap.exe` y lo prueba con datos temporales, sin red y sin `GEMINI_API_KEY`
+  genera `dist\Cenit\Cenit.exe` y lo prueba con datos temporales, sin red y sin `GEMINI_API_KEY`
   (registra un usuario temporal y comprueba `/api/health`, `/api/skills` y que se cargaron las ofertas incluidas).
-- **Cerrar** la app empaquetada: `dist\SkillMap\stop.bat` (o `stop.bat Otro.exe` si el ejecutable se llama distinto).
+- **Cerrar** la app empaquetada: `dist\Cenit\stop.bat` (o `stop.bat Otro.exe` si el ejecutable se llama distinto).
   Solo cierra el ejecutable de su misma carpeta.
 
 ## Endpoints (primer corte)

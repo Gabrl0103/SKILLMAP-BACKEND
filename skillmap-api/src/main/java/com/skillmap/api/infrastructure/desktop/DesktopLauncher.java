@@ -39,7 +39,7 @@ public class DesktopLauncher {
         int port = web.getWebServer().getPort();
         files.writePort(port);
         portPublished = true;
-        log.info("SkillMap lista en http://localhost:{}", port);
+        log.info("Cenit lista en http://localhost:{}", port);
         if (openBrowser) {
             BrowserOpener.open(port);
         }

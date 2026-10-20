@@ -1,4 +1,4 @@
-# Servicio de IA de SkillMap (perfil cloud) para Render.
+# Servicio de IA de Cenit (perfil cloud) para Render.
 # La key se pasa como variable de entorno GEMINI_API_KEY en el panel de Render, nunca en la imagen.
 
 # --- Build: compila el jar con el Maven wrapper ---
