@@ -1,5 +1,6 @@
 package com.skillmap.api.application.service.impl;
 
+import com.skillmap.api.application.service.ReadinessHistoryService;
 import com.skillmap.api.application.service.SkillService;
 import com.skillmap.api.domain.event.SkillMasteredEvent;
 import com.skillmap.api.domain.model.Skill;
@@ -26,12 +27,14 @@ public class SkillServiceImpl implements SkillService {
     private final UserSkillCatalog catalog;
     private final UserSkillRepository userSkillRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final ReadinessHistoryService readinessHistory;
 
     public SkillServiceImpl(UserSkillCatalog catalog, UserSkillRepository userSkillRepository,
-                            ApplicationEventPublisher eventPublisher) {
+                            ApplicationEventPublisher eventPublisher, ReadinessHistoryService readinessHistory) {
         this.catalog = catalog;
         this.userSkillRepository = userSkillRepository;
         this.eventPublisher = eventPublisher;
+        this.readinessHistory = readinessHistory;
     }
 
     @Override
@@ -50,6 +53,7 @@ public class SkillServiceImpl implements SkillService {
         updated.markAsMastered();
         // Solo el progreso de este usuario: la fila global de la habilidad no cambia.
         userSkillRepository.save(new UserSkill(userId, id, SkillStatus.MASTERED));
+        readinessHistory.recordSkillChange(userId, id);
 
         // Patrón Observer: publicamos el evento y quien esté interesado (el listener) reacciona.
         // Este servicio no sabe ni le importa quién escucha.
@@ -64,6 +68,7 @@ public class SkillServiceImpl implements SkillService {
         Skill skill = getSkillById(userId, id);
         // Sin fila de progreso la habilidad está pendiente (ver UserSkillCatalog): borrarla es deshacer el marcado.
         userSkillRepository.delete(userId, id);
+        readinessHistory.recordSkillChange(userId, id);
         return skill.withStatus(SkillStatus.PENDING);
     }
 
@@ -76,6 +81,8 @@ public class SkillServiceImpl implements SkillService {
                 Skill skill = getSkillById(userId, id);
                 // Misma fila de progreso que una dominada: guardar otro estado la reemplaza.
                 userSkillRepository.save(new UserSkill(userId, id, SkillStatus.IN_PROGRESS));
+                // Dominada -> aprendiendo baja el %; si no cambia, el historial no guarda nada.
+                readinessHistory.recordSkillChange(userId, id);
                 yield skill.withStatus(SkillStatus.IN_PROGRESS);
             }
         };

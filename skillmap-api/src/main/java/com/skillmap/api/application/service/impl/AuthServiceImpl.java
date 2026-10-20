@@ -1,6 +1,7 @@
 package com.skillmap.api.application.service.impl;
 
 import com.skillmap.api.application.service.AuthService;
+import com.skillmap.api.application.service.ReadinessHistoryService;
 import com.skillmap.api.domain.exception.AuthenticationRequiredException;
 import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
@@ -18,6 +19,7 @@ import com.skillmap.api.domain.port.TokenGenerator;
 import com.skillmap.api.domain.repository.CareerGoalRepository;
 import com.skillmap.api.domain.repository.ProfileLinkRepository;
 import com.skillmap.api.domain.repository.ProfileProjectRepository;
+import com.skillmap.api.domain.repository.ReadinessSnapshotRepository;
 import com.skillmap.api.domain.repository.SessionRepository;
 import com.skillmap.api.domain.repository.UserRepository;
 import com.skillmap.api.domain.repository.UserSkillRepository;
@@ -45,6 +47,8 @@ public class AuthServiceImpl implements AuthService {
     private final ProfileLinkRepository profileLinkRepository;
     private final ProfileProjectRepository profileProjectRepository;
     private final CareerGoalRepository careerGoalRepository;
+    private final ReadinessSnapshotRepository readinessSnapshotRepository;
+    private final ReadinessHistoryService readinessHistory;
     private final PasswordHasher passwordHasher;
     private final TokenGenerator tokenGenerator;
     private final LoginAttemptLimiter attemptLimiter;
@@ -59,6 +63,8 @@ public class AuthServiceImpl implements AuthService {
                            ProfileLinkRepository profileLinkRepository,
                            ProfileProjectRepository profileProjectRepository,
                            CareerGoalRepository careerGoalRepository,
+                           ReadinessSnapshotRepository readinessSnapshotRepository,
+                           ReadinessHistoryService readinessHistory,
                            PasswordHasher passwordHasher,
                            TokenGenerator tokenGenerator,
                            LoginAttemptLimiter attemptLimiter,
@@ -70,6 +76,8 @@ public class AuthServiceImpl implements AuthService {
         this.profileLinkRepository = profileLinkRepository;
         this.profileProjectRepository = profileProjectRepository;
         this.careerGoalRepository = careerGoalRepository;
+        this.readinessSnapshotRepository = readinessSnapshotRepository;
+        this.readinessHistory = readinessHistory;
         this.passwordHasher = passwordHasher;
         this.tokenGenerator = tokenGenerator;
         this.attemptLimiter = attemptLimiter;
@@ -159,7 +167,9 @@ public class AuthServiceImpl implements AuthService {
         if (careerGoalRepository.findById(goalId).isEmpty()) {
             throw new CareerGoalNotFoundException(goalId);
         }
-        return userRepository.save(user.withGoal(goalId));
+        User updated = userRepository.save(user.withGoal(goalId));
+        readinessHistory.recordGoal(userId, goalId);
+        return updated;
     }
 
     @Override
@@ -189,6 +199,7 @@ public class AuthServiceImpl implements AuthService {
         userSkillRepository.deleteByUserId(userId);
         profileLinkRepository.deleteByUserId(userId);
         profileProjectRepository.deleteByUserId(userId);
+        readinessSnapshotRepository.deleteByUserId(userId);
         sessionRepository.deleteByUserId(userId);
         userRepository.deleteById(userId);
     }
