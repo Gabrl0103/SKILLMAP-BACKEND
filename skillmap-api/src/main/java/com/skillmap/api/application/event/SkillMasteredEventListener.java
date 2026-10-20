@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 /**
  * "Observador" del evento SkillMasteredEvent (patrón Observer, resuelto con
  * el sistema de eventos de Spring en vez de implementarlo a mano).
- * Hoy solo deja un log; más adelante puede recalcular el % de preparación
- * del dashboard sin que SkillServiceImpl tenga que saber nada de eso.
+ * Solo deja un log: el % de preparación lo guarda ReadinessHistoryService
+ * en cada cambio de estado, no solo al dominar.
  */
 @Component
 public class SkillMasteredEventListener {
@@ -19,7 +19,6 @@ public class SkillMasteredEventListener {
 
     @EventListener
     public void onSkillMastered(SkillMasteredEvent event) {
-        log.info("Habilidad dominada: {} (id={}) — pendiente recalcular % de preparación",
-                event.getSkillName(), event.getSkillId());
+        log.info("Habilidad dominada: {} (id={})", event.getSkillName(), event.getSkillId());
     }
 }

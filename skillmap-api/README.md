@@ -64,5 +64,6 @@ Nuevos endpoints:
 - `GET /api/goals` — lista de objetivos laborales
 - `GET /api/goals/{id}` — un objetivo con sus habilidades e importancia (1-5)
 - `GET /api/goals/{id}/readiness` — % de preparación ponderado, conteos y brechas ordenadas por demanda
+- `GET /api/goals/{id}/readiness/history?days=30` — `[{"date","percentage"}]` del usuario por fecha (1 a 365 días, 30 por defecto); se guarda un punto por día al cambiar el estado de una habilidad o el objetivo, solo si el % cambia
 
 Datos de ejemplo: "Frontend Senior" (id 1) y "Backend Java" (id 2).
