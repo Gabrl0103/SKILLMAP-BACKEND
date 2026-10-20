@@ -103,6 +103,11 @@ public class RemoteJobSkillExtractor implements JobSkillExtractor {
         return List.copyOf(response.skills());
     }
 
+    @Override
+    public String engine() {
+        return "remote";
+    }
+
     /** GET /api/health para despertar el servicio. Cualquier fallo se ignora: solo es un aviso previo. */
     public void warmUp() {
         try {

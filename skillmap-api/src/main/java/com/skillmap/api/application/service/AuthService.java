@@ -31,6 +31,9 @@ public interface AuthService {
      */
     void changePassword(Long userId, String token, String currentPassword, String newPassword, String clientIp);
 
-    /** Con la contraseña correcta borra el usuario, sus sesiones, su progreso y sus enlaces y proyectos. Nada global. */
+    /**
+     * Con la contraseña correcta borra el usuario, sus sesiones, su progreso, sus enlaces y proyectos y su
+     * historial del Analizador. Nada global.
+     */
     void deleteAccount(Long userId, String password, String clientIp);
 }
