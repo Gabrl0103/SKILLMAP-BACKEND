@@ -16,6 +16,7 @@ import com.skillmap.api.domain.model.User;
 import com.skillmap.api.domain.port.LoginAttemptLimiter;
 import com.skillmap.api.domain.port.PasswordHasher;
 import com.skillmap.api.domain.port.TokenGenerator;
+import com.skillmap.api.domain.repository.AnalysisHistoryRepository;
 import com.skillmap.api.domain.repository.CareerGoalRepository;
 import com.skillmap.api.domain.repository.ProfileLinkRepository;
 import com.skillmap.api.domain.repository.ProfileProjectRepository;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final ProfileProjectRepository profileProjectRepository;
     private final CareerGoalRepository careerGoalRepository;
     private final ReadinessSnapshotRepository readinessSnapshotRepository;
+    private final AnalysisHistoryRepository analysisHistoryRepository;
     private final ReadinessHistoryService readinessHistory;
     private final PasswordHasher passwordHasher;
     private final TokenGenerator tokenGenerator;
@@ -64,6 +66,7 @@ public class AuthServiceImpl implements AuthService {
                            ProfileProjectRepository profileProjectRepository,
                            CareerGoalRepository careerGoalRepository,
                            ReadinessSnapshotRepository readinessSnapshotRepository,
+                           AnalysisHistoryRepository analysisHistoryRepository,
                            ReadinessHistoryService readinessHistory,
                            PasswordHasher passwordHasher,
                            TokenGenerator tokenGenerator,
@@ -77,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
         this.profileProjectRepository = profileProjectRepository;
         this.careerGoalRepository = careerGoalRepository;
         this.readinessSnapshotRepository = readinessSnapshotRepository;
+        this.analysisHistoryRepository = analysisHistoryRepository;
         this.readinessHistory = readinessHistory;
         this.passwordHasher = passwordHasher;
         this.tokenGenerator = tokenGenerator;
@@ -200,6 +204,7 @@ public class AuthServiceImpl implements AuthService {
         profileLinkRepository.deleteByUserId(userId);
         profileProjectRepository.deleteByUserId(userId);
         readinessSnapshotRepository.deleteByUserId(userId);
+        analysisHistoryRepository.deleteByUserId(userId);
         sessionRepository.deleteByUserId(userId);
         userRepository.deleteById(userId);
     }
