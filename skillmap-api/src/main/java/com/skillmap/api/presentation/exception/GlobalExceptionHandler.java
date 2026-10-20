@@ -12,6 +12,7 @@ import com.skillmap.api.domain.exception.AuthenticationRequiredException;
 import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
 import com.skillmap.api.domain.exception.IncorrectPasswordException;
+import com.skillmap.api.domain.exception.InvalidHistoryRangeException;
 import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
 import com.skillmap.api.domain.exception.InvalidProfileDataException;
@@ -69,6 +70,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidSkillStatusException.class)
     public ResponseEntity<ErrorResponse> handleInvalidSkillStatus(InvalidSkillStatusException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidHistoryRangeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidHistoryRange(InvalidHistoryRangeException ex) {
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 
