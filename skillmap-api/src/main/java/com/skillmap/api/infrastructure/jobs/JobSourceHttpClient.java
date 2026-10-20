@@ -29,7 +29,7 @@ import java.time.Duration;
 public class JobSourceHttpClient {
 
     private static final Logger log = LoggerFactory.getLogger(JobSourceHttpClient.class);
-    private static final String USER_AGENT = "SkillMap/0.1";
+    private static final String USER_AGENT = "Cenit/0.1";
 
     private final RestClient restClient;
 

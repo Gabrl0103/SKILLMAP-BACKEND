@@ -58,7 +58,7 @@ public class SingleInstanceGuard implements ApplicationListener<ApplicationEnvir
             log.warn("La instancia abierta no publicó su puerto; se prueba con {}", configured);
             return configured;
         });
-        log.info("SkillMap ya está abierta (puerto {}): se abre su ventana y este arranque termina", port);
+        log.info("Cenit ya está abierta (puerto {}): se abre su ventana y este arranque termina", port);
         if (environment.getProperty(DesktopLauncher.OPEN_BROWSER_PROPERTY, Boolean.class, true)) {
             BrowserOpener.open(port);
         }
@@ -87,7 +87,7 @@ public class SingleInstanceGuard implements ApplicationListener<ApplicationEnvir
             return true;
         } catch (IOException e) {
             // Si no se puede comprobar se arranca igual: en el peor caso H2 rechazará la segunda.
-            log.warn("No se pudo comprobar si SkillMap ya está abierta ({}); se arranca igualmente", e.getMessage());
+            log.warn("No se pudo comprobar si Cenit ya está abierta ({}); se arranca igualmente", e.getMessage());
             return true;
         }
     }
