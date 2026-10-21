@@ -142,6 +142,11 @@ class RemotiveAutoSyncTest {
         }
 
         @Override
+        public JobPosting getJob(Long id) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public JobStats getStats() {
             return new JobStats(0, List.of(
                     new JobStats.SourceStats("Arbeitnow", 0, NOW, null),

@@ -1,6 +1,7 @@
 package com.skillmap.api.application.service.impl;
 
 import com.skillmap.api.application.service.JobService;
+import com.skillmap.api.domain.exception.JobPostingNotFoundException;
 import com.skillmap.api.domain.exception.JobSourceException;
 import com.skillmap.api.domain.model.JobPosting;
 import com.skillmap.api.domain.model.JobStats;
@@ -132,6 +133,11 @@ public class JobServiceImpl implements JobService {
             throw new IllegalArgumentException("El límite debe estar entre 1 y " + MAX_LIST_LIMIT + ".");
         }
         return postingRepository.findNewest(limit);
+    }
+
+    @Override
+    public JobPosting getJob(Long id) {
+        return postingRepository.findById(id).orElseThrow(JobPostingNotFoundException::new);
     }
 
     @Override

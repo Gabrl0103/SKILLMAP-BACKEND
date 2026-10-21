@@ -140,6 +140,7 @@ class JobPostingSeederTest {
         @Override public Set<String> findExternalIdsBySource(String source) { return Set.of(); }
         @Override public void saveAll(Collection<JobPosting> postings) { stored.addAll(postings); }
         @Override public List<JobPosting> findAll() { return List.copyOf(stored); }
+        @Override public Optional<JobPosting> findById(Long id) { return stored.stream().filter(p -> id.equals(p.id())).findFirst(); }
         @Override public List<JobPosting> findNewest(int limit) { return List.of(); }
         @Override public long count() { return stored.size(); }
         @Override public Map<String, Long> countBySource() { return Map.of(); }
@@ -154,6 +155,7 @@ class JobPostingSeederTest {
         @Override public JobSyncReport sync() { throw new AssertionError("El seeder no debe sincronizar"); }
         @Override public JobSyncReport syncSource(String source) { throw new AssertionError("El seeder no debe sincronizar"); }
         @Override public List<JobPosting> getNewestJobs(int limit) { return List.of(); }
+        @Override public JobPosting getJob(Long id) { throw new UnsupportedOperationException(); }
         @Override public JobStats getStats() { return new JobStats(0, List.of(), null); }
 
         @Override

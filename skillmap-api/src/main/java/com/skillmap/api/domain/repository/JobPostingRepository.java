@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** Puerto de salida para persistir las ofertas de empleo. */
@@ -13,6 +14,7 @@ public interface JobPostingRepository {
     Set<String> findExternalIdsBySource(String source);
     void saveAll(Collection<JobPosting> postings);
     List<JobPosting> findAll();
+    Optional<JobPosting> findById(Long id);
     /** Las más recientes primero, según la fecha de publicación. */
     List<JobPosting> findNewest(int limit);
     long count();
