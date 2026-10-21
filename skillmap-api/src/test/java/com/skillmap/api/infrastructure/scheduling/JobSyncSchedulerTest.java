@@ -86,6 +86,11 @@ class JobSyncSchedulerTest {
         }
 
         @Override
+        public JobPosting getJob(Long id) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public JobStats getStats() {
             return new JobStats(postings, List.of(), null);
         }

@@ -18,6 +18,8 @@ import com.skillmap.api.domain.exception.InvalidHistoryRangeException;
 import com.skillmap.api.domain.exception.InvalidCredentialsException;
 import com.skillmap.api.domain.exception.InvalidJobDescriptionException;
 import com.skillmap.api.domain.exception.InvalidProfileDataException;
+import com.skillmap.api.domain.exception.InvalidRecommendationLimitException;
+import com.skillmap.api.domain.exception.JobPostingNotFoundException;
 import com.skillmap.api.domain.exception.InvalidSettingsException;
 import com.skillmap.api.domain.exception.InvalidSkillStatusException;
 import com.skillmap.api.domain.exception.InvalidUserDataException;
@@ -68,6 +70,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AnalysisHistoryNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAnalysisHistoryNotFound(AnalysisHistoryNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(JobPostingNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleJobPostingNotFound(JobPostingNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidRecommendationLimitException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRecommendationLimit(InvalidRecommendationLimitException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidProfileDataException.class)

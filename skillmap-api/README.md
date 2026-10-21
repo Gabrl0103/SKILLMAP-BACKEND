@@ -68,3 +68,24 @@ Nuevos endpoints:
 - `GET /api/goals/{id}/readiness/history?days=30` — `[{"date","percentage"}]` del usuario por fecha (1 a 365 días, 30 por defecto); se guarda un punto por día al cambiar el estado de una habilidad o el objetivo, solo si el % cambia
 
 Datos de ejemplo: "Frontend Senior" (id 1) y "Backend Java" (id 2).
+
+## Ofertas de empleo
+
+Todas exigen sesión (`Authorization: Bearer <token>`; sin ella, 401).
+
+- `GET /api/jobs?limit=50` — las ofertas guardadas más recientes, sin la descripción
+- `GET /api/jobs/stats` — total y ofertas por fuente, última y próxima sincronización
+- `POST /api/jobs/sync` — trae ofertas nuevas de Arbeitnow y Remotive (como mucho cada 6 h por fuente)
+- `GET /api/jobs/recommended?limit=10&goalId=` — las ofertas guardadas que mejor encajan con el objetivo del usuario
+  (`users.goal_id`; si no tiene, el primero; `goalId` opcional para pedir las de otro objetivo, 404 si no existe).
+  `limit` de 1 a 30 (10 por defecto; fuera de rango, 400).
+  Las habilidades de cada oferta salen de `SkillMatcher` (sin IA, sin llamadas externas) y se recalcula en cada
+  petición con el progreso actual; la detección por oferta se cachea en memoria (no depende del usuario).
+  - Solo ofertas con al menos 2 habilidades detectadas y al menos 1 del objetivo.
+  - `matchPercentage`: % de las habilidades detectadas que el usuario ya tiene (dominada 1, aprendiendo 0,5, pendiente 0).
+  - Orden: mayor `matchPercentage`, luego más habilidades del objetivo, luego la más reciente.
+  - Cada elemento: `id`, `title`, `company`, `source`, `url` (la original: Remotive exige citarla y enlazarla),
+    `publishedAt`, `matchPercentage`, `masteredSkills` (nombres) y `missingSkills` (`[{"name","status"}]`, con
+    `IN_PROGRESS` antes que `PENDING`). Nunca el texto completo de la oferta.
+- `GET /api/jobs/{id}` — una oferta con su `description` completa (para llevarla al Analizador); 404 si no existe.
+  No llama a la IA: el análisis solo se hace si el usuario lo pide en el Analizador.

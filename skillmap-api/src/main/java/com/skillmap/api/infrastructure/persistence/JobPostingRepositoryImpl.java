@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** Adaptador del puerto JobPostingRepository sobre Spring Data JPA. */
@@ -37,6 +38,11 @@ public class JobPostingRepositoryImpl implements JobPostingRepository {
     @Override
     public List<JobPosting> findAll() {
         return jpaRepository.findAll().stream().map(JobPostingPersistenceMapper::toDomain).toList();
+    }
+
+    @Override
+    public Optional<JobPosting> findById(Long id) {
+        return jpaRepository.findById(id).map(JobPostingPersistenceMapper::toDomain);
     }
 
     @Override

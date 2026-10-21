@@ -426,6 +426,7 @@ class JobServiceImplTest {
         }
 
         @Override public List<JobPosting> findAll() { return List.copyOf(stored); }
+        @Override public Optional<JobPosting> findById(Long id) { return stored.stream().filter(p -> id.equals(p.id())).findFirst(); }
 
         @Override
         public List<JobPosting> findNewest(int limit) {
