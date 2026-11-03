@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -333,7 +334,7 @@ class AccountControllerTest {
         List<Long> skillIds = skills.findAll().stream().map(s -> s.getId()).limit(2).toList();
         mvc.perform(patch("/api/skills/" + skillIds.get(0) + "/master").with(TestAuth.bearer(token)))
                 .andExpect(status().isOk());
-        userSkills.save(new UserSkill(userId, skillIds.get(1), SkillStatus.IN_PROGRESS));
+        userSkills.save(new UserSkill(userId, skillIds.get(1), SkillStatus.IN_PROGRESS, Instant.now()));
         mvc.perform(patch("/api/skills/" + skillIds.get(0) + "/master").with(TestAuth.bearer(bob)))
                 .andExpect(status().isOk());
         mvc.perform(patch("/api/settings").with(TestAuth.bearer(token))

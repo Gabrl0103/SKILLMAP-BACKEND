@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -26,12 +27,24 @@ public class UserSkillRepositoryImpl implements UserSkillRepository {
     }
 
     @Override
+    public Map<Long, UserSkill> findByUserId(Long userId) {
+        return jpaRepository.findByUserId(userId).stream()
+                .collect(Collectors.toMap(UserSkillEntity::getSkillId, UserSkillRepositoryImpl::toDomain));
+    }
+
+    @Override
+    public Optional<UserSkill> find(Long userId, Long skillId) {
+        return jpaRepository.findByUserIdAndSkillId(userId, skillId).map(UserSkillRepositoryImpl::toDomain);
+    }
+
+    @Override
     @Transactional
     public void save(UserSkill userSkill) {
         Long id = jpaRepository.findByUserIdAndSkillId(userSkill.userId(), userSkill.skillId())
                 .map(UserSkillEntity::getId)
                 .orElse(null);
-        jpaRepository.save(new UserSkillEntity(id, userSkill.userId(), userSkill.skillId(), userSkill.status()));
+        jpaRepository.save(new UserSkillEntity(id, userSkill.userId(), userSkill.skillId(), userSkill.status(),
+                userSkill.updatedAt()));
     }
 
     @Override
@@ -44,5 +57,9 @@ public class UserSkillRepositoryImpl implements UserSkillRepository {
     @Transactional
     public void deleteByUserId(Long userId) {
         jpaRepository.deleteByUserId(userId);
+    }
+
+    private static UserSkill toDomain(UserSkillEntity entity) {
+        return new UserSkill(entity.getUserId(), entity.getSkillId(), entity.getStatus(), entity.getUpdatedAt());
     }
 }

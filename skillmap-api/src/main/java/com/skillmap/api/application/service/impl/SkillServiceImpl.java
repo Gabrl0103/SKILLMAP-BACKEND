@@ -10,6 +10,9 @@ import com.skillmap.api.domain.repository.UserSkillRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
@@ -28,13 +31,16 @@ public class SkillServiceImpl implements SkillService {
     private final UserSkillRepository userSkillRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ReadinessHistoryService readinessHistory;
+    private final Clock clock;
 
     public SkillServiceImpl(UserSkillCatalog catalog, UserSkillRepository userSkillRepository,
-                            ApplicationEventPublisher eventPublisher, ReadinessHistoryService readinessHistory) {
+                            ApplicationEventPublisher eventPublisher, ReadinessHistoryService readinessHistory,
+                            Clock clock) {
         this.catalog = catalog;
         this.userSkillRepository = userSkillRepository;
         this.eventPublisher = eventPublisher;
         this.readinessHistory = readinessHistory;
+        this.clock = clock;
     }
 
     @Override
@@ -50,16 +56,17 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public Skill markSkillAsMastered(Long userId, Long id) {
         Skill updated = getSkillById(userId, id);
+        UserSkill progress = progress(updated, userId, SkillStatus.MASTERED);
         updated.markAsMastered();
         // Solo el progreso de este usuario: la fila global de la habilidad no cambia.
-        userSkillRepository.save(new UserSkill(userId, id, SkillStatus.MASTERED));
+        userSkillRepository.save(progress);
         readinessHistory.recordSkillChange(userId, id);
 
         // Patrón Observer: publicamos el evento y quien esté interesado (el listener) reacciona.
         // Este servicio no sabe ni le importa quién escucha.
         eventPublisher.publishEvent(new SkillMasteredEvent(updated.getId(), updated.getName()));
 
-        return updated;
+        return updated.withProgress(SkillStatus.MASTERED, progress.updatedAt());
     }
 
     @Override
@@ -79,12 +86,25 @@ public class SkillServiceImpl implements SkillService {
             case PENDING -> unmarkSkillAsMastered(userId, id);
             case IN_PROGRESS -> {
                 Skill skill = getSkillById(userId, id);
+                UserSkill progress = progress(skill, userId, SkillStatus.IN_PROGRESS);
                 // Misma fila de progreso que una dominada: guardar otro estado la reemplaza.
-                userSkillRepository.save(new UserSkill(userId, id, SkillStatus.IN_PROGRESS));
+                userSkillRepository.save(progress);
                 // Dominada -> aprendiendo baja el %; si no cambia, el historial no guarda nada.
                 readinessHistory.recordSkillChange(userId, id);
-                yield skill.withStatus(SkillStatus.IN_PROGRESS);
+                yield skill.withProgress(SkillStatus.IN_PROGRESS, progress.updatedAt());
             }
         };
+    }
+
+    /**
+     * Progreso a guardar con la fecha del cambio. Repetir el estado que ya tenía no la mueve: la fecha dice cuándo pasó
+     * a ese estado (las rachas de Mi Ruta cuentan avances por semana), no cuándo se volvió a guardar. Al segundo: la
+     * respuesta coincide con lo que se relee de la base.
+     */
+    private UserSkill progress(Skill current, Long userId, SkillStatus status) {
+        Instant changedAt = current.getStatus() == status && current.getStatusUpdatedAt() != null
+                ? current.getStatusUpdatedAt()
+                : clock.instant().truncatedTo(ChronoUnit.SECONDS);
+        return new UserSkill(userId, current.getId(), status, changedAt);
     }
 }

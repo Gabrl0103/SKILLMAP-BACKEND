@@ -11,6 +11,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "user_skills", uniqueConstraints = @UniqueConstraint(
         name = "uk_user_skills_user_skill", columnNames = {"user_id", "skill_id"}))
@@ -30,19 +32,28 @@ public class UserSkillEntity {
     @Column(nullable = false)
     private SkillStatus status;
 
+    /**
+     * Cuándo pasó a este estado. Admite null en la base para que ddl-auto=update pueda agregar la columna a una base
+     * con filas: esas filas reciben su valor al arrancar (UserSkillDatesBackfill) y las nuevas siempre lo traen.
+     */
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
     protected UserSkillEntity() {
         // Requerido por JPA.
     }
 
-    public UserSkillEntity(Long id, Long userId, Long skillId, SkillStatus status) {
+    public UserSkillEntity(Long id, Long userId, Long skillId, SkillStatus status, Instant updatedAt) {
         this.id = id;
         this.userId = userId;
         this.skillId = skillId;
         this.status = status;
+        this.updatedAt = updatedAt;
     }
 
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Long getSkillId() { return skillId; }
     public SkillStatus getStatus() { return status; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }
