@@ -1,5 +1,7 @@
 package com.skillmap.api.presentation.dto;
 
+import java.time.Instant;
+
 /**
  * DTO de salida. Nunca exponemos la entidad de dominio ni la de persistencia
  * directamente por la API: así el contrato con los 3 clientes (Desktop,
@@ -11,6 +13,8 @@ public record SkillResponse(
         String category,
         int demandPercentage,
         String demandSource,
-        String status
+        String status,
+        /** Cuándo pasó el usuario a este estado (ISO-8601, UTC); null si está pendiente. */
+        Instant statusUpdatedAt
 ) {
 }
