@@ -54,6 +54,15 @@ class JobAnalyzerServiceImplTest {
                     ? Map.of(1L, SkillStatus.MASTERED, 2L, SkillStatus.IN_PROGRESS, 4L, SkillStatus.MASTERED)
                     : Map.of();
         }
+        @Override public Map<Long, UserSkill> findByUserId(Long userId) {
+            Map<Long, UserSkill> progress = new java.util.HashMap<>();
+            findStatusesByUserId(userId).forEach((skillId, status) ->
+                    progress.put(skillId, new UserSkill(userId, skillId, status, null)));
+            return progress;
+        }
+        @Override public Optional<UserSkill> find(Long userId, Long skillId) {
+            return Optional.ofNullable(findByUserId(userId).get(skillId));
+        }
         @Override public void save(UserSkill userSkill) { }
         @Override public void delete(Long userId, Long skillId) { }
         @Override public void deleteByUserId(Long userId) { }

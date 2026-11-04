@@ -3,6 +3,7 @@ package com.skillmap.api.application.service.impl;
 import com.skillmap.api.domain.exception.SkillNotFoundException;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.model.SkillStatus;
+import com.skillmap.api.domain.model.UserSkill;
 import com.skillmap.api.domain.repository.SkillRepository;
 import com.skillmap.api.domain.repository.UserSkillRepository;
 import org.springframework.stereotype.Component;
@@ -27,18 +28,21 @@ public class UserSkillCatalog {
     }
 
     public List<Skill> findAll(Long userId) {
-        Map<Long, SkillStatus> statuses = userSkillRepository.findStatusesByUserId(userId);
+        Map<Long, UserSkill> progress = userSkillRepository.findByUserId(userId);
         return skillRepository.findAll().stream()
-                .map(skill -> withUserStatus(skill, statuses))
+                .map(skill -> withUserProgress(skill, progress.get(skill.getId())))
                 .toList();
     }
 
     public Skill findById(Long userId, Long skillId) {
         Skill skill = skillRepository.findById(skillId).orElseThrow(() -> new SkillNotFoundException(skillId));
-        return withUserStatus(skill, userSkillRepository.findStatusesByUserId(userId));
+        return withUserProgress(skill, userSkillRepository.find(userId, skillId).orElse(null));
     }
 
-    private static Skill withUserStatus(Skill skill, Map<Long, SkillStatus> statuses) {
-        return skill.withStatus(statuses.getOrDefault(skill.getId(), SkillStatus.PENDING));
+    /** Estado del usuario y cuándo pasó a él; sin progreso, pendiente y sin fecha. */
+    private static Skill withUserProgress(Skill skill, UserSkill progress) {
+        return progress == null
+                ? skill.withStatus(SkillStatus.PENDING)
+                : skill.withProgress(progress.status(), progress.updatedAt());
     }
 }

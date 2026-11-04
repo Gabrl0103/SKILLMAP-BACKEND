@@ -46,10 +46,17 @@ Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador po
   Solo cierra el ejecutable de su misma carpeta.
 
 ## Endpoints (primer corte)
-- `GET  /api/skills` — lista todas las habilidades
-- `GET  /api/skills/{id}` — detalle de una habilidad
+- `GET  /api/skills` — lista todas las habilidades, con el estado del usuario y `statusUpdatedAt`: cuándo pasó a ese
+  estado (ISO-8601 en UTC, al segundo; `null` si está pendiente). Repetir el mismo estado no mueve la fecha. Las
+  brechas de `GET /api/goals/{id}/readiness` traen el mismo campo.
+- `GET  /api/skills/{id}` — detalle de una habilidad (mismos campos)
 - `PATCH /api/skills/{id}/master` — marca una habilidad como dominada
 - `PUT /api/skills/{id}/status` — `{"status":"PENDING"|"IN_PROGRESS"|"MASTERED"}`: pendiente, aprendiendo o dominada (solo para el usuario)
+
+La fecha vive en `user_skills.updated_at`. `ddl-auto=update` agrega la columna (admite null) a una base existente y, al
+arrancar, `UserSkillDatesBackfill` les da a las filas sin fecha la fecha de alta de su cuenta: la más antigua posible,
+no una inventada, así lo marcado antes de esta versión no cuenta como avance de esta semana. Lo prueban
+`SkillStatusDateTest` (reloj fijo) y `LegacyUserSkillsTableTest` (base anterior con progreso guardado).
 - `PUT /api/auth/me/goal` — `{"goalId": n}`: objetivo profesional del usuario (sale como `goalId` en `/api/auth/me`); su progreso no cambia
 
 ## Próximos commits
