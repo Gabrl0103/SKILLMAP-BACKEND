@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<title>Cenit</title>
+<!-- Pantalla de carga y de error de la app de escritorio. main.js la abre con ?state=loading|error&kind=...
+     &lang=es|en&theme=light|dark&logs=<carpeta>. Mismos colores que css/styles.css del frontend. -->
+<style>
+  :root {
+    --bg-solid:#F6F4FC;
+    --bg-base:linear-gradient(180deg,#FBF4F8 0%,#F6F4FC 55%,#F2F6FD 100%);
+    --bg-glow:radial-gradient(1000px 520px at 8% -4%,rgba(217,95,142,.30),transparent 64%),
+              radial-gradient(900px 520px at 100% 0%,rgba(63,99,216,.22),transparent 62%);
+    --text:#1B1730; --text-2:#5B5675; --card:rgba(255,255,255,.72); --card-border:rgba(27,23,48,.08);
+    --from:#BE3A72; --to:#3F63D8; --track:rgba(27,23,48,.08); --danger:#C2334F;
+  }
+  :root[data-theme="dark"] {
+    --bg-solid:#0B1020;
+    --bg-base:linear-gradient(180deg,#0B1020 0%,#0D1126 55%,#0A0F22 100%);
+    --bg-glow:radial-gradient(1000px 520px at 8% -4%,rgba(109,40,217,.40),transparent 64%),
+              radial-gradient(900px 520px at 100% 0%,rgba(217,95,142,.18),transparent 62%);
+    --text:#EEF0FA; --text-2:#A7ABC6; --card:rgba(20,24,46,.66); --card-border:rgba(255,255,255,.08);
+    --from:#D95F8E; --to:#A78BFA; --track:rgba(255,255,255,.10); --danger:#F17C93;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; margin:0; }
+  body {
+    font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; color:var(--text);
+    background:var(--bg-glow), var(--bg-base); background-color:var(--bg-solid);
+    display:grid; place-items:center; user-select:none; -webkit-user-select:none; overflow:hidden;
+  }
+  main { width:min(440px, calc(100vw - 32px)); text-align:center; }
+  .star { width:72px; height:72px; margin:0 auto 20px; animation:breathe 2.4s ease-in-out infinite; }
+  .wordmark { font-size:28px; font-weight:700; letter-spacing:-.02em; margin:0 0 6px; }
+  .status { font-size:15px; color:var(--text-2); margin:0 0 26px; min-height:1.4em; }
+  .bar { height:4px; border-radius:999px; background:var(--track); overflow:hidden; width:220px; margin:0 auto; }
+  .bar::after { content:""; display:block; height:100%; width:40%; border-radius:inherit;
+    background:linear-gradient(90deg,var(--from),var(--to)); animation:slide 1.4s ease-in-out infinite; }
+  .card { display:none; background:var(--card); border:1px solid var(--card-border); border-radius:20px;
+    padding:28px 28px 24px; backdrop-filter:blur(18px); box-shadow:0 18px 50px rgba(10,12,30,.18); }
+  .card h1 { font-size:20px; margin:0 0 10px; }
+  .card p { font-size:14px; line-height:1.55; color:var(--text-2); margin:0 0 8px; }
+  .card .logs { font-size:12px; word-break:break-all; }
+  .card .logs button { all:unset; cursor:pointer; color:var(--to); text-decoration:underline; }
+  .actions { display:flex; gap:10px; justify-content:center; margin-top:20px; }
+  .actions button { font:inherit; font-size:14px; font-weight:600; border-radius:12px; padding:10px 22px; cursor:pointer;
+    border:1px solid var(--card-border); background:transparent; color:var(--text); }
+  .actions button.primary { border:0; color:#fff; background:linear-gradient(135deg,var(--from),var(--to)); }
+  .actions button:focus-visible, .logs button:focus-visible { outline:2px solid var(--to); outline-offset:2px; }
+  body.error .loading { display:none; }
+  body.error .card { display:block; }
+  body.error .star { animation:none; width:52px; height:52px; margin-bottom:16px; }
+  @keyframes breathe { 0%,100% { transform:scale(1) rotate(0); opacity:.92; } 50% { transform:scale(1.08) rotate(8deg); opacity:1; } }
+  @keyframes slide { 0% { transform:translateX(-110%); } 100% { transform:translateX(280%); } }
+  @media (prefers-reduced-motion: reduce) { .star, .bar::after { animation:none; } .bar::after { width:100%; opacity:.6; } }
+</style>
+</head>
+<body>
+<main>
+  <svg class="star" viewBox="0 0 24 24" aria-hidden="true">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" style="stop-color:var(--from)"/><stop offset="1" style="stop-color:var(--to)"/>
+    </linearGradient></defs>
+    <path d="M12 1Q14.2 10.8 20 13Q14.2 15.2 12 23Q9.8 15.2 4 13Q9.8 10.8 12 1Z" fill="url(#g)"/>
+  </svg>
+  <div class="loading">
+    <p class="wordmark">Cenit</p>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <div class="bar" aria-hidden="true"></div>
+  </div>
+  <section class="card" role="alert">
+    <h1 id="error-title"></h1>
+    <p id="error-message"></p>
+    <p class="logs" id="logs"></p>
+    <div class="actions">
+      <button class="primary" id="retry" type="button"></button>
+      <button id="close" type="button"></button>
+    </div>
+  </section>
+</main>
+<script>
+  const TEXT = {
+    es: {
+      loading: 'Preparando tu ruta…',
+      retry: 'Reintentar', close: 'Cerrar', logs: 'Detalles en', openLogs: 'abrir carpeta de logs',
+      timeout: ['Cenit tardó demasiado en arrancar', 'El servicio interno no respondió en 60 segundos. Pulsa Reintentar; si vuelve a pasar, cierra otras apps pesadas y prueba de nuevo.'],
+      crashed: ['El servicio de Cenit se detuvo', 'Se cerró de forma inesperada. Tus datos están guardados: pulsa Reintentar para volver a abrirlo.'],
+      'already-running': ['Cenit ya está abierta en otro proceso', 'Otra copia de Cenit (por ejemplo, la versión anterior) está usando tus datos. Ciérrala y pulsa Reintentar.'],
+      missing: ['Faltan archivos de Cenit', 'No se encontró el servicio interno de la app. Vuelve a instalar Cenit.'],
+      'start-failed': ['Cenit no pudo arrancar', 'El servicio interno falló al iniciarse. Pulsa Reintentar; si vuelve a pasar, revisa el log.'],
+    },
+    en: {
+      loading: 'Preparing your path…',
+      retry: 'Retry', close: 'Close', logs: 'Details in', openLogs: 'open logs folder',
+      timeout: ['Cenit took too long to start', 'The internal service did not respond within 60 seconds. Press Retry; if it happens again, close other heavy apps and try again.'],
+      crashed: ['Cenit’s service stopped', 'It closed unexpectedly. Your data is saved: press Retry to start it again.'],
+      'already-running': ['Cenit is already open in another process', 'Another copy of Cenit (for example, the previous version) is using your data. Close it and press Retry.'],
+      missing: ['Cenit files are missing', 'The app’s internal service was not found. Please reinstall Cenit.'],
+      'start-failed': ['Cenit could not start', 'The internal service failed to start. Press Retry; if it happens again, check the log.'],
+    },
+  };
+  const params = new URLSearchParams(location.search);
+  const lang = params.get('lang') === 'en' ? 'en' : 'es';
+  const t = TEXT[lang];
+  document.documentElement.lang = lang;
+  document.documentElement.setAttribute('data-theme', params.get('theme') === 'dark' ? 'dark' : 'light');
+  document.getElementById('status').textContent = t.loading;
+
+  if (params.get('state') === 'error') {
+    const [title, message] = t[params.get('kind')] || t['start-failed'];
+    document.body.classList.add('error');
+    document.title = `Cenit — ${title}`;
+    document.getElementById('error-title').textContent = title;
+    document.getElementById('error-message').textContent = message;
+    const logs = params.get('logs');
+    if (logs) {
+      const p = document.getElementById('logs');
+      p.append(`${t.logs} ${logs} · `);
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.textContent = t.openLogs;
+      open.addEventListener('click', () => window.cenitDesktop?.openLogs());
+      p.append(open);
+    }
+    const retry = document.getElementById('retry');
+    retry.textContent = t.retry;
+    retry.addEventListener('click', () => {
+      retry.disabled = true;
+      window.cenitDesktop?.retry();
+    });
+    const close = document.getElementById('close');
+    close.textContent = t.close;
+    close.addEventListener('click', () => window.cenitDesktop?.quit());
+    retry.focus();
+  }
+</script>
+</body>
+</html>

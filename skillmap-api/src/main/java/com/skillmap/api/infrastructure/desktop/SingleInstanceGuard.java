@@ -32,6 +32,11 @@ public class SingleInstanceGuard implements ApplicationListener<ApplicationEnvir
     /** Lo que puede tardar la otra instancia en terminar de arrancar y publicar su puerto. */
     private static final Duration PORT_WAIT = Duration.ofSeconds(60);
     private static final Duration POLL_INTERVAL = Duration.ofMillis(250);
+    /**
+     * Código de salida cuando otra instancia ya usa la misma carpeta de datos y no hay navegador que abrir
+     * (la lanzó otro programa, ej. la app de escritorio): así quien la lanzó distingue este caso de un fallo.
+     */
+    public static final int EXIT_ALREADY_RUNNING = 3;
 
     /**
      * Se mantiene abierto durante toda la vida del proceso; el sistema operativo suelta
@@ -58,10 +63,12 @@ public class SingleInstanceGuard implements ApplicationListener<ApplicationEnvir
             log.warn("La instancia abierta no publicó su puerto; se prueba con {}", configured);
             return configured;
         });
-        log.info("Cenit ya está abierta (puerto {}): se abre su ventana y este arranque termina", port);
-        if (environment.getProperty(DesktopLauncher.OPEN_BROWSER_PROPERTY, Boolean.class, true)) {
-            BrowserOpener.open(port);
+        if (!environment.getProperty(DesktopLauncher.OPEN_BROWSER_PROPERTY, Boolean.class, true)) {
+            log.warn("Cenit ya está abierta (puerto {}) con la misma carpeta de datos: este arranque termina", port);
+            System.exit(EXIT_ALREADY_RUNNING);
         }
+        log.info("Cenit ya está abierta (puerto {}): se abre su ventana y este arranque termina", port);
+        BrowserOpener.open(port);
         System.exit(0);
     }
 
