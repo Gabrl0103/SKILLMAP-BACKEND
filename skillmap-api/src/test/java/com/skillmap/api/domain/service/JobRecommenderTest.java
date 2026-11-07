@@ -92,8 +92,26 @@ class JobRecommenderTest {
         assertThat(result).extracting(r -> r.posting().id()).containsExactly(1L, 2L);
     }
 
+    @Test
+    void dropsDuplicatesWithSameCompanyAndTitleKeepingTheBestRanked() {
+        JobPosting newer = posting(1, 1, "ACME", "Backend Developer");
+        JobPosting repeated = posting(2, 5, " acme ", "backend  developer");
+        JobPosting otherCompany = posting(3, 3, "Globex", "Backend Developer");
+        JobPosting otherTitle = posting(4, 4, "ACME", "Frontend Developer");
+        List<JobPosting> postings = List.of(repeated, otherCompany, otherTitle, newer);
+
+        List<JobRecommendation> result = JobRecommender.recommend(postings, p -> Set.of(JAVA, SQL), catalog(Map.of()), GOAL, 3);
+
+        // Mismo encaje: la más reciente de las dos repetidas se queda y el límite lo llena otra oferta distinta.
+        assertThat(result).extracting(r -> r.posting().id()).containsExactly(1L, 3L, 4L);
+    }
+
     private static JobPosting posting(long id, int daysAgo) {
-        return new JobPosting(id, "Arbeitnow", "ext-" + id, "Oferta " + id, "ACME", "Remote", true, "", "https://example.com/" + id,
+        return posting(id, daysAgo, "ACME", "Oferta " + id);
+    }
+
+    private static JobPosting posting(long id, int daysAgo, String company, String title) {
+        return new JobPosting(id, "Arbeitnow", "ext-" + id, title, company, "Remote", true, "", "https://example.com/" + id,
                 "texto", NOW.minus(Duration.ofDays(daysAgo)), NOW);
     }
 

@@ -9,7 +9,9 @@ import com.skillmap.api.domain.model.SkillStatus;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -24,6 +26,8 @@ import java.util.function.Function;
  * - matchPercentage = % de las habilidades detectadas que el usuario ya tiene: dominada cuenta 1, aprendiendo 0,5
  *   y pendiente 0 (igual que el Analizador).
  * - Orden: mayor encaje, luego más habilidades del objetivo, luego la más reciente.
+ * - Sin repetidas: de las ofertas con la misma empresa y el mismo título (sin distinguir mayúsculas ni espacios) queda
+ *   solo la primera en ese orden; las fuentes a veces publican la misma vacante varias veces.
  */
 public final class JobRecommender {
 
@@ -49,12 +53,23 @@ public final class JobRecommender {
     public static List<JobRecommendation> recommend(Collection<JobPosting> postings,
                                                     Function<JobPosting, Set<Long>> detectedSkillIds,
                                                     List<Skill> catalog, Set<Long> goalSkillIds, int limit) {
+        Set<String> seen = new HashSet<>();
         return postings.stream()
                 .map(posting -> score(posting, detectedSkillIds.apply(posting), catalog, goalSkillIds))
                 .filter(Objects::nonNull)
                 .sorted(ORDER)
+                .filter(r -> seen.add(duplicateKey(r.posting())))
                 .limit(limit)
                 .toList();
+    }
+
+    /** Empresa y título normalizados: dos ofertas con la misma clave son la misma vacante. */
+    private static String duplicateKey(JobPosting posting) {
+        return normalize(posting.company()) + "|" + normalize(posting.title());
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.strip().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 
     /** null si la oferta no es relevante para el objetivo. */
