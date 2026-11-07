@@ -21,10 +21,13 @@ import java.util.Map;
  * que escuchará Tomcat. Se prefieren los cercanos porque el origen del frontend
  * (y con él su localStorage) incluye el puerto. DesktopLauncher abre el navegador en el
  * puerto que se use al final. Lo registra {@code main}, así que no actúa en los tests.
+ * Con {@value #STRICT_PORT_PROPERTY}=true (lo pasa la app de escritorio, que elige el puerto y lo
+ * necesita exacto) no se cambia: si está ocupado, Tomcat falla al arrancar y quien lanzó la app reintenta.
  */
 public class PortSelector implements ApplicationListener<ApplicationEnvironmentPreparedEvent>, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(PortSelector.class);
+    static final String STRICT_PORT_PROPERTY = "skillmap.desktop.strict-port";
     static final int ATTEMPTS = 10;
     private static final int MAX_PORT = 65535;
 
@@ -54,6 +57,9 @@ public class PortSelector implements ApplicationListener<ApplicationEnvironmentP
     }
 
     void selectPort(ConfigurableEnvironment environment) {
+        if (environment.getProperty(STRICT_PORT_PROPERTY, Boolean.class, false)) {
+            return;
+        }
         int preferred = environment.getProperty("server.port", Integer.class, 8080);
         if (preferred <= 0) {
             return; // 0: ya es uno libre al azar; negativo: sin servidor web

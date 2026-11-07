@@ -49,6 +49,16 @@ class PortSelectorTest {
     }
 
     @Test
+    void keepsTakenPortWhenStrict() {
+        var env = env("18080");
+        env.setProperty(PortSelector.STRICT_PORT_PROPERTY, "true");
+
+        new PortSelector((address, port) -> false).selectPort(env);
+
+        assertThat(env.getProperty("server.port", Integer.class)).isEqualTo(18080);
+    }
+
+    @Test
     void leavesRandomPortAlone() {
         var env = env("0");
 

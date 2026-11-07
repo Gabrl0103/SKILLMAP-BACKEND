@@ -3,6 +3,7 @@ package com.skillmap.api;
 import com.skillmap.api.infrastructure.config.CloudConfig;
 import com.skillmap.api.infrastructure.desktop.PortSelector;
 import com.skillmap.api.infrastructure.desktop.SingleInstanceGuard;
+import com.skillmap.api.infrastructure.desktop.StdinLifeline;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurationExcludeFilter;
@@ -26,7 +27,8 @@ public class SkillmapApiApplication {
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(SkillmapApiApplication.class);
         // Antes de crear el contexto: una sola instancia y un puerto libre (no en el perfil cloud).
-        app.addListeners(new SingleInstanceGuard(), new PortSelector());
+        // StdinLifeline solo actúa si la lanza la app de escritorio (skillmap.desktop.exit-on-stdin-close).
+        app.addListeners(new StdinLifeline(), new SingleInstanceGuard(), new PortSelector());
         app.run(args);
     }
 
