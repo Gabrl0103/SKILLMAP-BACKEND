@@ -1,0 +1,70 @@
+{
+  "name": "cenit-desktop",
+  "productName": "Cenit",
+  "version": "1.0.0",
+  "description": "Cenit: tu ruta hacia el cenit de tu carrera",
+  "author": "Cenit",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "icon": "node scripts/make-icon.js",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.cenit.desktop",
+    "productName": "Cenit",
+    "executableName": "Cenit",
+    "copyright": "Cenit",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "loading.html",
+      "build/icon.ico",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asar": true,
+    "electronLanguages": [
+      "es",
+      "es-419",
+      "en-US"
+    ],
+    "win": {
+      "target": [
+        "dir",
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Cenit",
+      "artifactName": "Cenit-Setup-${version}.${ext}",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
