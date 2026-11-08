@@ -1,4 +1,4 @@
-package com.skillmap.api.infrastructure.config;
+package com.skillmap.api.infrastructure.ai;
 
 import com.skillmap.api.domain.model.GeminiApiKey;
 import org.junit.jupiter.api.Test;

@@ -8,7 +8,6 @@ import com.skillmap.api.domain.exception.AiRateLimitException;
 import com.skillmap.api.domain.exception.AiServiceException;
 import com.skillmap.api.domain.exception.AiTimeoutException;
 import com.skillmap.api.domain.port.JobSkillExtractor;
-import com.skillmap.api.infrastructure.config.GeminiApiKeyProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,4 +1,4 @@
-package com.skillmap.api.infrastructure.config;
+package com.skillmap.api.infrastructure.persistence.seed;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;

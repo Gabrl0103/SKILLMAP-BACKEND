@@ -1,5 +1,6 @@
 package com.skillmap.api.infrastructure.config;
 
+import com.skillmap.api.infrastructure.ai.GeminiApiKeyProvider;
 import com.skillmap.api.infrastructure.ai.GeminiJobSkillExtractor;
 import com.skillmap.api.infrastructure.security.AiDailyLimiter;
 import com.skillmap.api.presentation.controller.AiController;

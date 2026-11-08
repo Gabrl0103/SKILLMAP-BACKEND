@@ -7,8 +7,6 @@ import com.skillmap.api.domain.exception.AiQuotaExhaustedException;
 import com.skillmap.api.domain.exception.AiRateLimitException;
 import com.skillmap.api.domain.exception.AiServiceException;
 import com.skillmap.api.domain.exception.AiTimeoutException;
-import com.skillmap.api.infrastructure.config.GeminiApiKeyProvider;
-import com.skillmap.api.infrastructure.config.PropertiesFileGeminiKeyStore;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

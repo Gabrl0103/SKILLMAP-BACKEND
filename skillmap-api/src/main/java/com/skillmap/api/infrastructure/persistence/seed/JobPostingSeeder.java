@@ -1,4 +1,4 @@
-package com.skillmap.api.infrastructure.config;
+package com.skillmap.api.infrastructure.persistence.seed;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

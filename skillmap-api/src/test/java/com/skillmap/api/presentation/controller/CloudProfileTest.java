@@ -2,7 +2,7 @@ package com.skillmap.api.presentation.controller;
 
 import com.skillmap.api.application.service.AuthService;
 import com.skillmap.api.domain.port.JobSkillExtractor;
-import com.skillmap.api.infrastructure.config.DataSeeder;
+import com.skillmap.api.infrastructure.persistence.seed.DataSeeder;
 import com.skillmap.api.infrastructure.desktop.DesktopLauncher;
 import com.skillmap.api.infrastructure.scheduling.JobSyncScheduler;
 import com.skillmap.api.infrastructure.scheduling.SourceAutoSync;
