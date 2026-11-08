@@ -29,6 +29,7 @@
       "main.js",
       "preload.js",
       "loading.html",
+      "fonts/plus-jakarta-sans-latin.woff2",
       "build/icon.ico",
       "package.json"
     ],

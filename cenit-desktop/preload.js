@@ -1,7 +1,8 @@
 // Preload mínimo (contextIsolation: true, nodeIntegration: false, sandbox: true).
-// - Pantalla de carga/error (file://): expone Reintentar, Cerrar y Abrir logs.
+// - Pantalla de carga/error (file://): expone Reintentar, Cerrar y Abrir logs, y onReady/proceed: main.js avisa que la
+//   app está lista y la pantalla, al terminar su apertura y su fundido, pide pasar a ella.
 // - App (http://127.0.0.1:PUERTO): expone solo exportPdf (Exportar CV -> PDF por IPC, ver main.js) y avisa del
-//   idioma y el tema elegidos para que la pantalla de carga del próximo arranque salga igual.
+//   idioma, el tema y "Reducir animaciones" para que la pantalla de carga del próximo arranque salga igual.
 // - En las dos: los botones laterales del mouse (atrás/adelante) no navegan.
 'use strict';
 
@@ -15,7 +16,19 @@ for (const type of ['mouseup', 'auxclick']) {
 }
 
 if (location.protocol === 'file:') {
+  // El aviso puede llegar antes de que la página registre su función: se recuerda
+  let ready = false;
+  let onReady = null;
+  ipcRenderer.on('cenit:ready', () => {
+    ready = true;
+    if (onReady) { const cb = onReady; onReady = null; cb(); }
+  });
   contextBridge.exposeInMainWorld('cenitDesktop', {
+    onReady: (cb) => {
+      if (typeof cb !== 'function') return;
+      if (ready) cb(); else onReady = cb;
+    },
+    proceed: () => ipcRenderer.send('cenit:proceed'),
     retry: () => ipcRenderer.send('cenit:retry'),
     quit: () => ipcRenderer.send('cenit:quit'),
     openLogs: () => ipcRenderer.send('cenit:open-logs'),
@@ -30,8 +43,9 @@ if (location.protocol === 'file:') {
     const send = () => ipcRenderer.send('cenit:ui-prefs', {
       lang: root.getAttribute('lang'),
       theme: root.getAttribute('data-theme'),
+      motion: root.getAttribute('data-motion'),
     });
     send();
-    new MutationObserver(send).observe(root, { attributes: true, attributeFilter: ['lang', 'data-theme'] });
+    new MutationObserver(send).observe(root, { attributes: true, attributeFilter: ['lang', 'data-theme', 'data-motion'] });
   });
 }
