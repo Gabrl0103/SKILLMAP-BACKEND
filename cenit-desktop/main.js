@@ -75,6 +75,11 @@ let startGeneration = 0;
 let quitting = false;
 let shutdownDone = false;
 let uiPrefs = readPrefs();
+// Pasar a la app cuando la pantalla de carga termine su apertura (cenit:proceed) o, como mucho, ENTER_FALLBACK_MS después
+let pendingEnter = null;
+const ENTER_FALLBACK_MS = 2_000;
+const launchedAt = Date.now();
+let appShownLogged = false;
 
 // --- Una sola instancia -------------------------------------------------------------------
 if (!app.requestSingleInstanceLock()) {
@@ -134,13 +139,19 @@ function init() {
   ipcMain.on('cenit:open-logs', (event) => {
     if (isLocalPage(event.senderFrame?.url)) shell.openPath(LOGS_DIR);
   });
+  ipcMain.on('cenit:proceed', (event) => {
+    if (isLocalPage(event.senderFrame?.url)) pendingEnter?.();
+  });
   ipcMain.on('cenit:ui-prefs', (event, prefs) => {
     if (!isAppUrl(event.senderFrame?.url) || typeof prefs !== 'object' || !prefs) return;
     const next = {
       lang: prefs.lang === 'en' ? 'en' : 'es',
       theme: prefs.theme === 'dark' ? 'dark' : 'light',
+      motion: prefs.motion === 'reduced' ? 'reduced' : 'full',
     };
-    if (next.lang !== uiPrefs.lang || next.theme !== uiPrefs.theme) {
+    // El fondo de la ventana sigue al tema: sin destello de otro color al cargar páginas
+    if (next.theme !== uiPrefs.theme) mainWindow?.setBackgroundColor(windowBackground(next.theme));
+    if (next.lang !== uiPrefs.lang || next.theme !== uiPrefs.theme || next.motion !== uiPrefs.motion) {
       uiPrefs = next;
       try { fs.writeFileSync(PREFS_FILE, JSON.stringify(uiPrefs)); } catch { /* solo afecta a la pantalla de carga */ }
     }
@@ -199,7 +210,7 @@ function createWindow() {
     center: true,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: uiTheme() === 'dark' ? '#0B1020' : '#F6F4FC',
+    backgroundColor: windowBackground(uiTheme()),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -239,6 +250,12 @@ function createWindow() {
   // vacía tras cada navegación (no hay adónde volver), app-command se cancela y los atajos se bloquean. preload.js
   // además cancela el mouseup de los botones 3 y 4.
   wc.on('did-navigate', () => clearHistory(wc));
+  // Medida para comparar arranques: cuánto tarda en verse la app desde que se abrió Cenit
+  wc.on('did-finish-load', () => {
+    if (appShownLogged || !isAppUrl(wc.getURL())) return;
+    appShownLogged = true;
+    log(`App cargada a los ${((Date.now() - launchedAt) / 1000).toFixed(1)} s de abrir Cenit`);
+  });
   wc.on('did-navigate-in-page', () => clearHistory(wc));
   mainWindow.on('app-command', (event, command) => {
     if (command === 'browser-backward' || command === 'browser-forward') event.preventDefault();
@@ -292,6 +309,11 @@ function clearHistory(wc) {
   } catch { /* la ventana se está cerrando */ }
 }
 
+// --bg-solid del frontend y de loading.html en cada tema
+function windowBackground(theme) {
+  return theme === 'dark' ? '#0B1020' : '#F6F4FC';
+}
+
 function uiTheme() {
   return uiPrefs.theme || (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 }
@@ -303,6 +325,7 @@ function showPage(state, extra = {}) {
     state,
     lang: uiPrefs.lang === 'en' ? 'en' : 'es', // el idioma por defecto de la app es español
     theme: uiTheme(),
+    ...(uiPrefs.motion === 'reduced' ? { motion: 'reduced' } : {}),
     ...extra,
   }).toString();
   mainWindow.loadURL(url.toString());
@@ -361,7 +384,7 @@ async function startBackend() {
     if (result === 'ok') {
       appOrigin = `http://127.0.0.1:${port}`;
       log(`Backend listo en ${appOrigin}`);
-      mainWindow?.loadURL(appOrigin);
+      enterApp(generation);
       return;
     }
     if (result !== 'port-in-use') {
@@ -371,6 +394,27 @@ async function startBackend() {
     log(`El puerto ${port} se ocupó al arrancar; se prueba otro`);
   }
   showError('start-failed');
+}
+
+/**
+ * Backend listo: si se ve la pantalla de carga, se le avisa (cenit:ready) y ella pide pasar a la app (cenit:proceed) al
+ * terminar su apertura y su fundido; si no responde en ENTER_FALLBACK_MS, se pasa igual. Nunca bloquea la carga.
+ */
+function enterApp(generation) {
+  const wc = mainWindow?.webContents;
+  if (!wc) return;
+  let timer = null;
+  const go = () => {
+    clearTimeout(timer);
+    if (pendingEnter !== go) return;
+    pendingEnter = null;
+    if (quitting || generation !== startGeneration || !appOrigin) return;
+    mainWindow?.loadURL(appOrigin);
+  };
+  pendingEnter = go;
+  if (!isLocalPage(wc.getURL())) { go(); return; }
+  timer = setTimeout(go, ENTER_FALLBACK_MS);
+  wc.send('cenit:ready');
 }
 
 /** @returns {Promise<'ok'|'timeout'|'crashed'|'already-running'|'start-failed'|'port-in-use'>} */
