@@ -53,6 +53,10 @@ Además:
 - **Una sola instancia**: abrir `Cenit.exe` otra vez enfoca la ventana existente.
 - **Enlaces externos** (`target=_blank` u otro origen) se abren en el navegador del sistema; la ventana no navega
   fuera de la app.
+- **Sin atrás/adelante**: los botones laterales del mouse, Alt+←/→ y las teclas de navegador no hacen nada; el
+  historial se vacía tras cada carga, así que la pantalla de carga nunca queda "detrás" de la app.
+- **Exportar CV**: el preload expone solo `cenitDesktop.exportPdf` y main.js genera el PDF con `printToPDF` (A4, sin
+  fondos, reglas `@media print` del CV) y lo guarda donde elija el usuario (por defecto `Documentos\CV-<nombre>.pdf`).
 - **Sin menú, sin DevTools ni recarga** (F5, Ctrl+R, F12, Ctrl+Shift+I) en el build empaquetado. Menú contextual solo
   en campos de texto (cortar, copiar, pegar, seleccionar todo).
 - **Errores**: si el backend no responde en 60 s, no arranca o se cae, sale una pantalla de error con "Reintentar" y

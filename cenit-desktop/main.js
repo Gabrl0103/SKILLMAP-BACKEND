@@ -8,7 +8,7 @@
 //      taskkill /PID <pid> /T /F. No queda ningún java corriendo.
 'use strict';
 
-const { app, BrowserWindow, Menu, shell, ipcMain, nativeTheme, screen, session } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, nativeTheme, screen, session, dialog } = require('electron');
 const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -145,6 +145,42 @@ function init() {
       try { fs.writeFileSync(PREFS_FILE, JSON.stringify(uiPrefs)); } catch { /* solo afecta a la pantalla de carga */ }
     }
   });
+  // Exportar CV: en Electron window.print() no sirve (sin vista previa ni "Guardar como PDF"). El frontend pide aquí
+  // el PDF: se imprime la propia página (con el CV abierto, @media print deja solo el CV en papel blanco), A4 y sin
+  // fondos, y se guarda donde elija el usuario (por defecto Documentos\CV-<nombre>.pdf).
+  ipcMain.handle('cenit:export-pdf', async (event, request) => {
+    if (!isAppUrl(event.senderFrame?.url) || !mainWindow) return { ok: false, error: 'forbidden' };
+    const es = uiPrefs.lang !== 'en';
+    const name = pdfFileName(request && typeof request.name === 'string' ? request.name : '');
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: es ? 'Guardar CV en PDF' : 'Save CV as PDF',
+        defaultPath: path.join(app.getPath('documents'), name),
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      });
+      if (canceled || !filePath) return { ok: false, canceled: true };
+      const data = await event.sender.printToPDF({
+        pageSize: 'A4',
+        printBackground: false,
+        preferCSSPageSize: true,
+        margins: { top: 0.63, bottom: 0.63, left: 0.59, right: 0.59 }, // pulgadas = @page { margin:16mm 15mm }
+      });
+      const target = path.extname(filePath).toLowerCase() === '.pdf' ? filePath : `${filePath}.pdf`;
+      await fs.promises.writeFile(target, data);
+      log(`CV exportado en PDF (${data.length} bytes)`);
+      return { ok: true, fileName: path.basename(target) };
+    } catch (err) {
+      log(`No se pudo exportar el CV: ${err.message}`);
+      return { ok: false, error: 'failed' };
+    }
+  });
+}
+
+/** CV-<nombre>.pdf sin caracteres que Windows no admite en un nombre de archivo. */
+function pdfFileName(raw) {
+  const clean = raw.normalize('NFC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim()
+    .replace(/[. ]+$/, '').slice(0, 80);
+  return clean ? `CV-${clean}.pdf` : 'CV.pdf';
 }
 
 // --- Ventana ------------------------------------------------------------------------------
@@ -187,15 +223,34 @@ function createWindow() {
     if (!isAppUrl(url)) openExternal(url);
     return { action: 'deny' };
   });
-  // Solo se navega dentro de la app (127.0.0.1:PUERTO) o a la pantalla de carga/error.
+  // Solo se navega dentro de la app (127.0.0.1:PUERTO); a la pantalla de carga/error solo la lleva main.js (loadURL
+  // no pasa por will-navigate) o ella misma.
   const guard = (event, url) => {
-    if (isAppUrl(url) || isLocalPage(url)) return;
+    if (isAppUrl(url) || (isLocalPage(url) && isLocalPage(wc.getURL()))) return;
     event.preventDefault();
-    openExternal(url);
+    if (!isLocalPage(url)) openExternal(url);
   };
   wc.on('will-navigate', guard);
   wc.on('will-redirect', guard);
   wc.on('will-attach-webview', (event) => event.preventDefault());
+
+  // La app no tiene historial: atrás/adelante (botones laterales del mouse, Alt+←/→, teclas de navegador) no hacen
+  // nada. Antes dejaban la ventana en loading.html ("Cenit… cargando") para siempre. Tres capas: el historial se
+  // vacía tras cada navegación (no hay adónde volver), app-command se cancela y los atajos se bloquean. preload.js
+  // además cancela el mouseup de los botones 3 y 4.
+  wc.on('did-navigate', () => clearHistory(wc));
+  wc.on('did-navigate-in-page', () => clearHistory(wc));
+  mainWindow.on('app-command', (event, command) => {
+    if (command === 'browser-backward' || command === 'browser-forward') event.preventDefault();
+  });
+  wc.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const key = input.key;
+    if (key === 'BrowserBack' || key === 'BrowserForward'
+      || (input.alt && (key === 'ArrowLeft' || key === 'ArrowRight') && !input.control && !input.shift && !input.meta)) {
+      event.preventDefault();
+    }
+  });
 
   // Sin DevTools ni recarga en producción (sin menú no hay atajos, pero por si acaso).
   if (!isDev) {
@@ -228,6 +283,13 @@ function createWindow() {
     log(`El renderizador terminó (${details.reason}); se recarga`);
     if (!quitting && appOrigin && details.reason !== 'clean-exit') wc.loadURL(appOrigin);
   });
+}
+
+function clearHistory(wc) {
+  try {
+    if (wc.navigationHistory?.clear) wc.navigationHistory.clear();
+    else wc.clearHistory?.();
+  } catch { /* la ventana se está cerrando */ }
 }
 
 function uiTheme() {

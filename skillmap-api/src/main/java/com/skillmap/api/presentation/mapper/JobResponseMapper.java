@@ -81,7 +81,7 @@ public final class JobResponseMapper {
                 stats.totalPostings(),
                 stats.sources().stream()
                         .map(s -> new JobStatsResponse.SourceStats(s.name(), s.postings(), s.lastSyncAt(),
-                                s.nextSyncAt(), autoSyncDays.get(s.name())))
+                                s.nextSyncAt(), autoSyncDays.get(s.name()), s.lastFailedAt()))
                         .toList(),
                 stats.lastSyncAt()
         );

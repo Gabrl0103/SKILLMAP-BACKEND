@@ -2,7 +2,9 @@ package com.skillmap.api.presentation.controller;
 
 import com.skillmap.api.application.service.JobRecommendationService;
 import com.skillmap.api.application.service.JobService;
+import com.skillmap.api.infrastructure.jobs.ArbeitnowJobSource;
 import com.skillmap.api.infrastructure.jobs.RemotiveJobSource;
+import com.skillmap.api.infrastructure.scheduling.ArbeitnowAutoSync;
 import com.skillmap.api.infrastructure.scheduling.RemotiveAutoSync;
 import com.skillmap.api.presentation.dto.JobDetailResponse;
 import com.skillmap.api.presentation.dto.JobPostingResponse;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,12 +34,15 @@ public class JobController {
     private final JobService jobService;
     private final JobRecommendationService recommendationService;
     private final ObjectProvider<RemotiveAutoSync> remotiveAutoSync;
+    private final ObjectProvider<ArbeitnowAutoSync> arbeitnowAutoSync;
 
     public JobController(JobService jobService, JobRecommendationService recommendationService,
-                         ObjectProvider<RemotiveAutoSync> remotiveAutoSync) {
+                         ObjectProvider<RemotiveAutoSync> remotiveAutoSync,
+                         ObjectProvider<ArbeitnowAutoSync> arbeitnowAutoSync) {
         this.jobService = jobService;
         this.recommendationService = recommendationService;
         this.remotiveAutoSync = remotiveAutoSync;
+        this.arbeitnowAutoSync = arbeitnowAutoSync;
     }
 
     // TODO versión web: key y sync solo admin.
@@ -54,10 +60,9 @@ public class JobController {
 
     @GetMapping("/stats")
     public JobStatsResponse getStats() {
-        RemotiveAutoSync autoSync = remotiveAutoSync.getIfAvailable();
-        Map<String, Integer> autoSyncDays = autoSync == null
-                ? Map.of()
-                : Map.of(RemotiveJobSource.NAME, autoSync.intervalDays());
+        Map<String, Integer> autoSyncDays = new HashMap<>();
+        remotiveAutoSync.ifAvailable(a -> autoSyncDays.put(RemotiveJobSource.NAME, a.intervalDays()));
+        arbeitnowAutoSync.ifAvailable(a -> autoSyncDays.put(ArbeitnowJobSource.NAME, a.intervalDays()));
         return JobResponseMapper.toResponse(jobService.getStats(), autoSyncDays);
     }
 

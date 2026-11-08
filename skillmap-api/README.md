@@ -43,7 +43,16 @@ Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador po
   genera `dist\Cenit\Cenit.exe` y lo prueba con datos temporales, sin red y sin `GEMINI_API_KEY`
   (registra un usuario temporal y comprueba `/api/health`, `/api/skills` y que se cargaron las ofertas incluidas).
 - **Cerrar** la app empaquetada: `dist\Cenit\stop.bat` (o `stop.bat Otro.exe` si el ejecutable se llama distinto).
-  Solo cierra el ejecutable de su misma carpeta.
+  Solo cierra el ejecutable de su misma carpeta. Con la app de escritorio de `cenit-desktop/` (Electron) ya no hace
+  falta: al cerrar la ventana se detiene el backend.
+- **App de escritorio** (`cenit-desktop/`, Electron): lanza este backend oculto con
+  `--skillmap.desktop.open-browser=false` (no abre el navegador; también vale la variable de entorno
+  `SKILLMAP_DESKTOP_OPENBROWSER=false`), `--server.port=<puerto que elige Electron>`,
+  `--skillmap.desktop.strict-port=true` (usa ese puerto exacto: si está ocupado falla y Electron prueba otro, en vez de
+  cambiarlo sin avisar) y `--skillmap.desktop.exit-on-stdin-close=true` (se apaga ordenadamente cuando Electron cierra
+  stdin o muere: no quedan procesos `java` huérfanos). Si otra instancia ya usa la misma carpeta de datos y no hay
+  navegador que abrir, el arranque termina con código 3. Por defecto `open-browser=true` y las otras dos en `false`: el
+  comportamiento de `mvnw spring-boot:run` y de `dist\Cenit\Cenit.exe` no cambia.
 
 ## Endpoints (primer corte)
 - `GET  /api/skills` — lista todas las habilidades, con el estado del usuario y `statusUpdatedAt`: cuándo pasó a ese

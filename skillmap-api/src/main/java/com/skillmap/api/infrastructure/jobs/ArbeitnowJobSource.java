@@ -31,7 +31,7 @@ import java.util.List;
 public class ArbeitnowJobSource implements JobPostingSource {
 
     private static final Logger log = LoggerFactory.getLogger(ArbeitnowJobSource.class);
-    static final String NAME = "Arbeitnow";
+    public static final String NAME = "Arbeitnow";
 
     private final JobSourceHttpClient http;
     private final String baseUrl;
