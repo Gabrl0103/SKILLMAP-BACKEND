@@ -1,4 +1,4 @@
-package com.skillmap.api.infrastructure.config;
+package com.skillmap.api.infrastructure.persistence.seed;
 
 import com.skillmap.api.domain.factory.CareerGoalFactory;
 import com.skillmap.api.domain.factory.SkillFactory;

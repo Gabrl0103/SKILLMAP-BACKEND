@@ -10,11 +10,47 @@ infrastructure/  → JPA, base de datos, adaptadores técnicos
 presentation/    → controladores REST que consumen los 3 clientes
 ```
 
+Detalle de capas, flujo, perfiles, empaquetado y decisiones en [`../docs/ARQUITECTURA.md`](../docs/ARQUITECTURA.md).
+
 ## Cómo correrlo
 ```
 ./mvnw spring-boot:run -Dspring-boot.run.arguments=--skillmap.desktop.open-browser=false
 ```
-Sin el argumento, al arrancar se abre la app (Edge en modo app o el navegador por defecto).
+Sin el argumento, al arrancar el backend suelto abre la interfaz en una ventana de Edge (modo `--app`) o en el
+navegador por defecto. Es solo para desarrollo y para la app anterior de jpackage: **la app de escritorio actual es
+`cenit-desktop/` (Electron)**, que abre Cenit en su propia ventana y arranca el backend sin navegador.
+
+Tests: `./mvnw test` con JDK 21 (con JDK 26, Mockito puede fallar al instrumentar clases).
+
+## Propiedades principales
+
+Todas en `src/main/resources/application.properties` (comentadas por secciones); se cambian con `--propiedad=valor`.
+Ninguna lleva secretos.
+
+| Propiedad | Por defecto | Para qué |
+|---|---|---|
+| `skillmap.home` | `%APPDATA%\SkillMap` (`~/SkillMap`) | Carpeta del usuario: datos, `config.properties`, logs |
+| `skillmap.data-dir` | `${skillmap.home}/data` | Base H2 |
+| `skillmap.config-dir` | `${skillmap.home}` | Dónde está `config.properties` (key de Gemini guardada desde Ajustes) |
+| `skillmap.logs-dir` | `${skillmap.home}/logs` | Logs con rotación |
+| `server.port` / `server.address` | `8080` / `127.0.0.1` | Puerto (si está ocupado, otro libre) y red (solo este equipo) |
+| `skillmap.cors.allowed-origins` | Live Server (`:5500`) | Orígenes externos permitidos en `/api/**` |
+| `skillmap.auth.session-ttl` | `30d` | Duración de la sesión |
+| `skillmap.desktop.open-browser` | `true` | Abrir la interfaz al arrancar (Electron pasa `false`) |
+| `skillmap.desktop.strict-port` | `false` | Usar `server.port` exacto (Electron pasa `true`) |
+| `skillmap.desktop.exit-on-stdin-close` | `false` | Apagarse al cerrar stdin (Electron pasa `true`) |
+| `gemini.model` / `gemini.fallback-model` | `gemini-3.8-flash` / `gemini-3.5-flash` | Modelos para el Analizador con key propia |
+| `gemini.timeout` / `gemini.total-timeout` | `30s` / `35s` | Límite por intento y total |
+| `skillmap.ai.remote-url` | servicio en Render | IA sin key propia (perfil cloud) |
+| `jobs.sync.cron` | `0 0 6 * * *` (UTC) | Sincronización diaria de ofertas (`-` la desactiva) |
+| `jobs.sync.min-interval` | `6h` | Mínimo entre consultas a una misma fuente |
+| `jobs.sync.on-first-start` | `false` | Sincronizar al arrancar sin ofertas (la app trae las suyas) |
+| `skillmap.sync.remotive.*` / `skillmap.sync.arbeitnow.*` | cada 4 / 1 días, activas | Sincronización automática por fuente |
+| `jobs.retention.max-postings` / `max-age` | `1000` / `60d` | Cuántas ofertas se guardan |
+| `jobs.demand.min-postings` | `30` | Mínimo de ofertas para recalcular la demanda |
+| `skillmap.ai.daily-limit-per-ip` / `-global` | `20` / `150` (solo perfil `cloud`) | Cupo diario del servicio de IA |
+
+Perfil `cloud` (Render): `application-cloud.properties`. Tests: `src/test/resources/config/application.properties`.
 
 - **Datos**: H2 en modo archivo en `%APPDATA%\SkillMap\data` (`~/SkillMap/data` fuera de Windows). La carpeta
   conserva el nombre anterior de la app a propósito: quien ya la usaba no pierde sus datos.

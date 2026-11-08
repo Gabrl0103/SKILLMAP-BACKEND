@@ -1,8 +1,6 @@
 package com.skillmap.api.infrastructure.ai;
 
 import com.skillmap.api.domain.port.JobSkillExtractor;
-import com.skillmap.api.infrastructure.config.GeminiApiKeyProvider;
-import com.skillmap.api.infrastructure.config.PropertiesFileGeminiKeyStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

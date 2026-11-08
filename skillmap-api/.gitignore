@@ -1,13 +1,7 @@
-target/
-.idea/
-*.iml
-.DS_Store
+# Lo general (target/, dist/, IDE, logs, SO...) está en el .gitignore de la raíz del repositorio.
 
 # Base de datos H2 local (modo archivo): no se sube al repositorio.
 /data/
 
-# Frontend: lo copia el script de empaquetado, no se versiona aquí.
+# Frontend: lo copian los scripts de empaquetado, no se versiona aquí.
 /src/main/resources/static/
-
-# App empaquetada por scripts/build-app.ps1.
-/dist/

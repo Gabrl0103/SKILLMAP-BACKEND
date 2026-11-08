@@ -1,0 +1,35 @@
+# https://editorconfig.org — solo lo que ya usa el código; no obliga a reformatear archivos existentes.
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# PowerShell 5.1 lee como ANSI los .ps1 sin BOM: los scripts llevan BOM por los acentos.
+[*.ps1]
+charset = utf-8-bom
+end_of_line = crlf
+
+[*.{bat,cmd}]
+end_of_line = crlf
+
+[{mvnw,*.sh}]
+end_of_line = lf
+
+[*.{js,json,html,css}]
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Archivos de terceros o generados: se dejan como vienen.
+[{mvnw,mvnw.cmd,package-lock.json,**/seed/job-postings.json}]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = unset

@@ -1,0 +1,27 @@
+# Fin de línea: en el repositorio todo el texto va con LF; en la copia de trabajo lo decide core.autocrlf,
+# salvo los scripts que exigen uno concreto.
+* text=auto
+
+# Scripts de Windows: CRLF siempre.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Scripts de shell: LF siempre (el Dockerfile ejecuta mvnw en Linux).
+*.sh  text eol=lf
+mvnw  text eol=lf
+
+# Binarios: sin conversión ni diff de texto.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.jar   binary
+*.jsa   binary
+*.zip   binary
+*.exe   binary
+*.pdf   binary
