@@ -35,6 +35,7 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 class JobServiceImplTest {
 
@@ -343,6 +344,28 @@ class JobServiceImplTest {
         JobSyncReport retry = service.sync();
 
         assertThat(retry.sources().get(0).status()).isEqualTo(SourceSyncStatus.SYNCED);
+    }
+
+    @Test
+    void statsShowLastFailedAttemptUntilTheNextSuccessfulSync() {
+        int[] attempt = {0};
+        FakeSource arbeitnow = new FakeSource("Arbeitnow", () -> {
+            if (attempt[0]++ == 0) {
+                throw new JobSourceUnavailableException("Arbeitnow no responde");
+            }
+            return postings("Arbeitnow", 1, "Java");
+        });
+        FakeSource remotive = new FakeSource("Remotive", () -> postings("Remotive", 1, "Java"));
+        JobServiceImpl service = service(remotive, arbeitnow);
+
+        service.sync();
+        JobStats afterFailure = service.getStats();
+        assertThat(afterFailure.sources()).extracting(JobStats.SourceStats::name, JobStats.SourceStats::lastFailedAt)
+                .containsExactly(tuple("Remotive", null), tuple("Arbeitnow", NOW));
+
+        service.syncSource("Arbeitnow");
+        assertThat(service.getStats().sources()).extracting(JobStats.SourceStats::lastFailedAt)
+                .containsOnlyNulls();
     }
 
     // ---------- Consultas ----------

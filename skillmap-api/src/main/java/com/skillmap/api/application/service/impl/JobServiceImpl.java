@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class JobServiceImpl implements JobService {
@@ -51,6 +52,8 @@ public class JobServiceImpl implements JobService {
     private final Duration maxAge;
     private final int maxPostings;
     private final int minPostingsForDemand;
+    /** Último intento fallido por fuente desde su última sincronización correcta (en memoria). */
+    private final Map<String, Instant> lastFailures = new ConcurrentHashMap<>();
 
     public JobServiceImpl(List<JobPostingSource> sources,
                           JobPostingRepository postingRepository,
@@ -103,6 +106,7 @@ public class JobServiceImpl implements JobService {
                 List<JobPosting> fetched = source.fetch();
                 int added = storeNew(source.name(), fetched, now);
                 syncStateRepository.saveLastSync(source.name(), now);
+                lastFailures.remove(source.name());
                 log.info("{}: {} ofertas recibidas, {} nuevas", source.name(), fetched.size(), added);
                 results.add(new SourceSyncResult(source.name(), SourceSyncStatus.SYNCED, fetched.size(), added,
                         now, nextSync(now), minutesUntil(nextSync(now), now),
@@ -110,6 +114,7 @@ public class JobServiceImpl implements JobService {
             } catch (JobSourceException e) {
                 log.warn("No se pudo sincronizar {}: {}", source.name(), e.getMessage(), e.getCause());
                 failures.add(e);
+                lastFailures.put(source.name(), now);
                 // El intervalo cuenta desde la última sincronización correcta: tras un fallo
                 // normalmente se puede reintentar ya.
                 Instant next = lastSync.map(this::nextSync).orElse(null);
@@ -152,7 +157,7 @@ public class JobServiceImpl implements JobService {
 
         List<JobStats.SourceStats> perSource = names.stream()
                 .map(name -> new JobStats.SourceStats(name, counts.getOrDefault(name, 0L), syncs.get(name),
-                        syncs.containsKey(name) ? nextSync(syncs.get(name)) : null))
+                        syncs.containsKey(name) ? nextSync(syncs.get(name)) : null, lastFailures.get(name)))
                 .toList();
         Instant lastSync = syncs.values().stream().max(Comparator.naturalOrder()).orElse(null);
         return new JobStats(postingRepository.count(), perSource, lastSync);

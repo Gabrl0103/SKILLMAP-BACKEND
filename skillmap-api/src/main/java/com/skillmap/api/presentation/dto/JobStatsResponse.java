@@ -16,7 +16,9 @@ public record JobStatsResponse(
     /**
      * nextSyncAt: desde cuándo se puede volver a sincronizar la fuente.
      * autoSyncDays: cada cuántos días se sincroniza sola (null si no hay sincronización automática).
+     * lastFailedAt: último intento fallido posterior a lastSyncAt (null si no lo hubo desde que se abrió la app).
      */
-    public record SourceStats(String name, long jobs, Instant lastSyncAt, Instant nextSyncAt, Integer autoSyncDays) {
+    public record SourceStats(String name, long jobs, Instant lastSyncAt, Instant nextSyncAt, Integer autoSyncDays,
+                              Instant lastFailedAt) {
     }
 }

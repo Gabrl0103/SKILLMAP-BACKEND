@@ -5,7 +5,7 @@ import com.skillmap.api.domain.port.JobSkillExtractor;
 import com.skillmap.api.infrastructure.config.DataSeeder;
 import com.skillmap.api.infrastructure.desktop.DesktopLauncher;
 import com.skillmap.api.infrastructure.scheduling.JobSyncScheduler;
-import com.skillmap.api.infrastructure.scheduling.RemotiveAutoSync;
+import com.skillmap.api.infrastructure.scheduling.SourceAutoSync;
 import com.skillmap.api.presentation.filter.AuthenticationFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,7 +75,7 @@ class CloudProfileTest {
         assertThat(context.getBeanNamesForType(AuthService.class)).isEmpty();
         assertThat(context.getBeanNamesForType(AuthenticationFilter.class)).isEmpty();
         assertThat(context.getBeanNamesForType(JobSyncScheduler.class)).isEmpty();
-        assertThat(context.getBeanNamesForType(RemotiveAutoSync.class)).isEmpty();
+        assertThat(context.getBeanNamesForType(SourceAutoSync.class)).isEmpty();
         assertThat(context.getBeanNamesForType(DesktopLauncher.class)).isEmpty();
         assertThat(context.getBeanNamesForType(DataSeeder.class)).isEmpty();
     }

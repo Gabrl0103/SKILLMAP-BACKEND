@@ -10,7 +10,16 @@ public record JobStats(
         Instant lastSyncAt
 ) {
 
-    /** @param nextSyncAt desde cuándo se puede volver a sincronizar (null si nunca se sincronizó) */
-    public record SourceStats(String name, long postings, Instant lastSyncAt, Instant nextSyncAt) {
+    /**
+     * @param nextSyncAt   desde cuándo se puede volver a sincronizar (null si nunca se sincronizó)
+     * @param lastFailedAt último intento fallido desde la última sincronización correcta, en esta ejecución de la app
+     *                     (null si no lo hubo): así la app no muestra una fecha vieja sin explicar por qué
+     */
+    public record SourceStats(String name, long postings, Instant lastSyncAt, Instant nextSyncAt,
+                              Instant lastFailedAt) {
+
+        public SourceStats(String name, long postings, Instant lastSyncAt, Instant nextSyncAt) {
+            this(name, postings, lastSyncAt, nextSyncAt, null);
+        }
     }
 }
