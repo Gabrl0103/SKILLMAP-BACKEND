@@ -1,6 +1,4 @@
-# Generados por scripts/build-desktop.ps1 y npm: no se suben.
-node_modules/
-dist/
-out/
-# Backend preparado para empaquetar (runtime de Java + jar).
-backend/
+# Lo general (node_modules/, dist/, out/, logs, SO...) está en el .gitignore de la raíz del repositorio.
+
+# Backend preparado para empaquetar por scripts/build-desktop.ps1 (runtime de Java + jar).
+/backend/

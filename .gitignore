@@ -1,5 +1,37 @@
-# Archivos locales de asistentes de IA (no forman parte del proyecto)
+# --- Generados por los builds (Maven, jpackage, electron-builder, npm) ---
+target/
+dist/
+out/
+node_modules/
+
+# --- Logs y temporales ---
+*.log
+logs/
+*.tmp
+*.zip
+
+# --- Datos locales (H2 en modo archivo) ---
+*.mv.db
+*.trace.db
+skillmap-data/
+
+# --- Variables de entorno y secretos locales (la key de Gemini nunca va al repo) ---
+.env
+.env.*
+
+# --- IDE (no hay configuración compartida) ---
+.idea/
+*.iml
+.vscode/
+
+# --- Sistema operativo ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# --- Archivos locales de asistentes de IA (no forman parte del proyecto) ---
 SKILL.md
 .agents/
 .claude/
 skills-lock.json
+.impeccable/critique/
