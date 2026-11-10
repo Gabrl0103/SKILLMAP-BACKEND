@@ -1,7 +1,8 @@
 // Preload mínimo (contextIsolation: true, nodeIntegration: false, sandbox: true).
 // - Pantalla de carga/error (file://): expone Reintentar, Cerrar y Abrir logs, y onReady/proceed: main.js avisa que la
 //   app está lista y la pantalla, al terminar su apertura y su fundido, pide pasar a ella.
-// - App (http://127.0.0.1:PUERTO): expone solo exportPdf (Exportar CV -> PDF por IPC, ver main.js) y avisa del
+// - App (http://127.0.0.1:PUERTO): expone exportPdf (Exportar CV -> PDF por IPC, ver main.js), saveJson (Exportar mis
+//   datos) y version (Acerca de), y avisa del
 //   idioma, el tema y "Reducir animaciones" para que la pantalla de carga del próximo arranque salga igual.
 // - En las dos: los botones laterales del mouse (atrás/adelante) no navegan.
 'use strict';
@@ -37,6 +38,12 @@ if (location.protocol === 'file:') {
   contextBridge.exposeInMainWorld('cenitDesktop', {
     // Resuelve { ok: true, fileName } | { ok: false, canceled: true } | { ok: false, error }
     exportPdf: (name) => ipcRenderer.invoke('cenit:export-pdf', { name: typeof name === 'string' ? name : '' }),
+    // Exportar mis datos (Ajustes): guarda el JSON con el diálogo del sistema. Mismo resultado que exportPdf
+    saveJson: (name, text) => ipcRenderer.invoke('cenit:save-json', {
+      name: typeof name === 'string' ? name : '', text: typeof text === 'string' ? text : '',
+    }),
+    // Versión de la app (package.json, vía app.getVersion() en main.js) para Ajustes > Acerca de
+    version: () => ipcRenderer.invoke('cenit:version'),
   });
   window.addEventListener('DOMContentLoaded', () => {
     const root = document.documentElement;

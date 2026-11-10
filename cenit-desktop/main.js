@@ -185,6 +185,38 @@ function init() {
       return { ok: false, error: 'failed' };
     }
   });
+  // Exportar mis datos (Ajustes > Datos y cuenta): el frontend ya armó el JSON; aquí solo se elige dónde guardarlo (por
+  // defecto Documentos\<nombre>.json). Tope de 20 MB: un export real pesa unos pocos KB.
+  ipcMain.handle('cenit:save-json', async (event, request) => {
+    if (!isAppUrl(event.senderFrame?.url) || !mainWindow) return { ok: false, error: 'forbidden' };
+    const text = request && typeof request.text === 'string' ? request.text : '';
+    if (!text || text.length > 20 * 1024 * 1024) return { ok: false, error: 'invalid' };
+    const es = uiPrefs.lang !== 'en';
+    const name = jsonFileName(request && typeof request.name === 'string' ? request.name : '');
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+        title: es ? 'Guardar mis datos' : 'Save my data',
+        defaultPath: path.join(app.getPath('documents'), name),
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (canceled || !filePath) return { ok: false, canceled: true };
+      const target = path.extname(filePath).toLowerCase() === '.json' ? filePath : `${filePath}.json`;
+      await fs.promises.writeFile(target, text, 'utf8');
+      log(`Datos exportados (${Buffer.byteLength(text)} bytes)`);
+      return { ok: true, fileName: path.basename(target) };
+    } catch (err) {
+      log(`No se pudieron exportar los datos: ${err.message}`);
+      return { ok: false, error: 'failed' };
+    }
+  });
+  ipcMain.handle('cenit:version', (event) => (isAppUrl(event.senderFrame?.url) ? app.getVersion() : ''));
+}
+
+/** <nombre>.json sin caracteres que Windows no admite en un nombre de archivo. */
+function jsonFileName(raw) {
+  const clean = raw.normalize('NFC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim()
+    .replace(/[. ]+$/, '').replace(/\.json$/i, '').slice(0, 80);
+  return `${clean || 'Cenit-datos'}.json`;
 }
 
 /** CV-<nombre>.pdf sin caracteres que Windows no admite en un nombre de archivo. */
