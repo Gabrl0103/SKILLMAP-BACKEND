@@ -12,4 +12,5 @@ public interface ReadinessSnapshotJpaRepository extends JpaRepository<ReadinessS
     List<ReadinessSnapshotEntity> findByUserIdAndGoalIdAndCapturedOnGreaterThanEqualOrderByCapturedOnAsc(
             Long userId, Long goalId, LocalDate from);
     void deleteByUserId(Long userId);
+    void deleteByUserIdAndGoalId(Long userId, Long goalId);
 }
