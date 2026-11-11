@@ -102,7 +102,33 @@ La fecha vive en `user_skills.updated_at`. `ddl-auto=update` agrega la columna (
 arrancar, `UserSkillDatesBackfill` les da a las filas sin fecha la fecha de alta de su cuenta: la más antigua posible,
 no una inventada, así lo marcado antes de esta versión no cuenta como avance de esta semana. Lo prueban
 `SkillStatusDateTest` (reloj fijo) y `LegacyUserSkillsTableTest` (base anterior con progreso guardado).
-- `PUT /api/auth/me/goal` — `{"goalId": n}`: objetivo profesional del usuario (sale como `goalId` en `/api/auth/me`); su progreso no cambia
+- `PUT /api/auth/me/goal` — `{"goalId": n}`: objetivo profesional del usuario (sale como `goalId` en `/api/auth/me`); su progreso no cambia.
+  Acepta un objetivo base o uno propio del usuario (404 si es propio de otro usuario).
+
+### Objetivos propios ("Otro objetivo")
+
+Cada usuario puede crear hasta 3 objetivos propios: nombre de 2 a 40 caracteres en texto plano (sin `<` ni `>`), que no
+repita el de un objetivo base ni el de otro propio (sin mayúsculas ni espacios de sobra), descripción opcional de hasta
+120 y de 3 a 8 habilidades del catálogo sin repetir (reglas en `CustomGoalFactory`). Todas sus habilidades pesan igual
+(importancia 3): el % es dominadas / total. Funcionan en todo lo que usa un `goalId`: readiness, historial, ofertas
+recomendadas, `PUT /api/auth/me/goal` y export. Sus ids empiezan en 1.000.000 (secuencia `custom_goals_seq`), así nunca
+chocan con los base.
+
+- `GET /api/goals` — ahora devuelve los base y, después, los propios del usuario. Campos nuevos (solo se agregan):
+  `custom` (`true` en los propios), `createdAt` y `updatedAt` (null en los base).
+- `GET /api/goals/custom` — los propios del usuario, del más antiguo al más nuevo.
+- `POST /api/goals/custom` — `{"name", "description", "skillIds": [..]}` → 201 con el objetivo (misma forma que
+  `GET /api/goals`). 400 si no cumple las reglas, 409 si el nombre ya existe o ya tiene 3.
+- `PUT /api/goals/custom/{id}` — mismo cuerpo; 403 si `id` es un objetivo base, 404 si no es suyo, 400/409 como al crear.
+- `DELETE /api/goals/custom/{id}` — borra el objetivo y su historial de preparación y responde `{"goalId": n}`: el
+  objetivo elegido después. Si era el elegido, el usuario vuelve a su último objetivo base (`users.base_goal_id`) o al
+  primero. El progreso por habilidad no se toca. 403/404 como al editar.
+
+Persistencia: tablas `custom_goals` (FK `user_id → users` con `ON DELETE CASCADE`, índice único `(user_id, name_key)`)
+y `custom_goal_skills` (FK a `custom_goals` con cascada y a `skills`), y la columna `users.base_goal_id`. `ddl-auto=update`
+las crea en una base existente; `UserBaseGoalBackfill` da a las cuentas que ya tenían objetivo ese mismo como "base
+anterior". Al eliminar la cuenta se borran también (y la base los borra en cascada si se borra la fila del usuario). Lo
+prueban `CustomGoalFactoryTest`, `CustomGoalTest` y `LegacyCustomGoalsTest` (base de la versión anterior).
 
 ## Próximos commits
 - CareerGoal + GoalSkill (relación objetivo–habilidad y % de demanda)
