@@ -21,10 +21,12 @@ import java.util.stream.Collectors;
 public class CareerGoalServiceImpl implements CareerGoalService {
 
     private final CareerGoalRepository goalRepository;
+    private final GoalCatalog goals;
     private final UserSkillCatalog catalog;
 
-    public CareerGoalServiceImpl(CareerGoalRepository goalRepository, UserSkillCatalog catalog) {
+    public CareerGoalServiceImpl(CareerGoalRepository goalRepository, GoalCatalog goals, UserSkillCatalog catalog) {
         this.goalRepository = goalRepository;
+        this.goals = goals;
         this.catalog = catalog;
     }
 
@@ -39,8 +41,19 @@ public class CareerGoalServiceImpl implements CareerGoalService {
     }
 
     @Override
+    public List<CareerGoal> getGoals(Long userId) {
+        return goals.findAll(userId);
+    }
+
+    @Override
+    public CareerGoal getGoal(Long userId, Long id) {
+        return goals.require(userId, id);
+    }
+
+    /** Igual para un objetivo base que para uno propio del usuario (CareerGoal.calculateReadiness). */
+    @Override
     public GoalReadiness getReadiness(Long userId, Long goalId) {
-        CareerGoal goal = getGoalById(goalId);
+        CareerGoal goal = goals.require(userId, goalId);
         Set<Long> goalSkillIds = goal.getSkills().stream().map(GoalSkill::skillId).collect(Collectors.toSet());
 
         // Solo las habilidades que pertenecen a este objetivo, con el progreso del usuario.

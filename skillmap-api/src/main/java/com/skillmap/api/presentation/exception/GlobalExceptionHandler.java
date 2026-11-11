@@ -10,6 +10,9 @@ import com.skillmap.api.domain.exception.AiRateLimitException;
 import com.skillmap.api.domain.exception.AiServiceException;
 import com.skillmap.api.domain.exception.AiTimeoutException;
 import com.skillmap.api.domain.exception.AuthenticationRequiredException;
+import com.skillmap.api.domain.exception.CustomGoalConflictException;
+import com.skillmap.api.domain.exception.GoalNotEditableException;
+import com.skillmap.api.domain.exception.InvalidCustomGoalException;
 import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
 import com.skillmap.api.domain.exception.IncorrectPasswordException;
@@ -60,6 +63,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CareerGoalNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleGoalNotFound(CareerGoalNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidCustomGoalException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCustomGoal(InvalidCustomGoalException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    /** Nombre repetido o máximo de objetivos propios alcanzado. */
+    @ExceptionHandler(CustomGoalConflictException.class)
+    public ResponseEntity<ErrorResponse> handleCustomGoalConflict(CustomGoalConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(ex.getMessage()));
+    }
+
+    /** Editar o borrar un objetivo base. */
+    @ExceptionHandler(GoalNotEditableException.class)
+    public ResponseEntity<ErrorResponse> handleGoalNotEditable(GoalNotEditableException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(ex.getMessage()));
     }
 
     @ExceptionHandler(ProfileItemNotFoundException.class)
