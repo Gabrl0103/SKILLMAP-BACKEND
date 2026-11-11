@@ -37,6 +37,11 @@ public final class UserFactory {
         return new User(id, name, email, passwordHash, createdAt, headline, goalId);
     }
 
+    public static User reconstruct(Long id, String name, String email, String passwordHash, Instant createdAt,
+                                   String headline, Long goalId, Long baseGoalId) {
+        return new User(id, name, email, passwordHash, createdAt, headline, goalId, baseGoalId);
+    }
+
     public static String normalizeEmail(String email) {
         return email == null ? "" : email.strip().toLowerCase(Locale.ROOT);
     }

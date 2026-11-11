@@ -38,7 +38,8 @@ public class UserRepositoryImpl implements UserRepository {
     public User save(User user) {
         try {
             return toDomain(jpaRepository.saveAndFlush(new UserEntity(user.getId(), user.getName(), user.getEmail(),
-                    user.getPasswordHash(), user.getCreatedAt(), user.getHeadline(), user.getGoalId())));
+                    user.getPasswordHash(), user.getCreatedAt(), user.getHeadline(), user.getGoalId(),
+                    user.getBaseGoalId())));
         } catch (DataIntegrityViolationException e) {
             // Dos registros a la vez con el mismo correo: lo frena el índice único.
             throw new EmailAlreadyRegisteredException();
@@ -52,6 +53,6 @@ public class UserRepositoryImpl implements UserRepository {
 
     private static User toDomain(UserEntity e) {
         return UserFactory.reconstruct(e.getId(), e.getName(), e.getEmail(), e.getPasswordHash(), e.getCreatedAt(),
-                e.getHeadline(), e.getGoalId());
+                e.getHeadline(), e.getGoalId(), e.getBaseGoalId());
     }
 }

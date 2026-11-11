@@ -16,8 +16,9 @@ import com.skillmap.api.domain.model.User;
 import com.skillmap.api.domain.port.LoginAttemptLimiter;
 import com.skillmap.api.domain.port.PasswordHasher;
 import com.skillmap.api.domain.port.TokenGenerator;
+import com.skillmap.api.domain.model.CareerGoal;
 import com.skillmap.api.domain.repository.AnalysisHistoryRepository;
-import com.skillmap.api.domain.repository.CareerGoalRepository;
+import com.skillmap.api.domain.repository.CustomGoalRepository;
 import com.skillmap.api.domain.repository.ProfileLinkRepository;
 import com.skillmap.api.domain.repository.ProfileProjectRepository;
 import com.skillmap.api.domain.repository.ReadinessSnapshotRepository;
@@ -47,7 +48,8 @@ public class AuthServiceImpl implements AuthService {
     private final UserSkillRepository userSkillRepository;
     private final ProfileLinkRepository profileLinkRepository;
     private final ProfileProjectRepository profileProjectRepository;
-    private final CareerGoalRepository careerGoalRepository;
+    private final GoalCatalog goalCatalog;
+    private final CustomGoalRepository customGoalRepository;
     private final ReadinessSnapshotRepository readinessSnapshotRepository;
     private final AnalysisHistoryRepository analysisHistoryRepository;
     private final ReadinessHistoryService readinessHistory;
@@ -64,7 +66,8 @@ public class AuthServiceImpl implements AuthService {
                            UserSkillRepository userSkillRepository,
                            ProfileLinkRepository profileLinkRepository,
                            ProfileProjectRepository profileProjectRepository,
-                           CareerGoalRepository careerGoalRepository,
+                           GoalCatalog goalCatalog,
+                           CustomGoalRepository customGoalRepository,
                            ReadinessSnapshotRepository readinessSnapshotRepository,
                            AnalysisHistoryRepository analysisHistoryRepository,
                            ReadinessHistoryService readinessHistory,
@@ -78,7 +81,8 @@ public class AuthServiceImpl implements AuthService {
         this.userSkillRepository = userSkillRepository;
         this.profileLinkRepository = profileLinkRepository;
         this.profileProjectRepository = profileProjectRepository;
-        this.careerGoalRepository = careerGoalRepository;
+        this.goalCatalog = goalCatalog;
+        this.customGoalRepository = customGoalRepository;
         this.readinessSnapshotRepository = readinessSnapshotRepository;
         this.analysisHistoryRepository = analysisHistoryRepository;
         this.readinessHistory = readinessHistory;
@@ -168,10 +172,9 @@ public class AuthServiceImpl implements AuthService {
         if (goalId == null) {
             throw new InvalidUserDataException("Elige un objetivo profesional.");
         }
-        if (careerGoalRepository.findById(goalId).isEmpty()) {
-            throw new CareerGoalNotFoundException(goalId);
-        }
-        User updated = userRepository.save(user.withGoal(goalId));
+        // Un objetivo base o uno propio del usuario; el propio de otro usuario no existe para él (404)
+        CareerGoal goal = goalCatalog.find(userId, goalId).orElseThrow(() -> new CareerGoalNotFoundException(goalId));
+        User updated = userRepository.save(user.withGoal(goal));
         readinessHistory.recordGoal(userId, goalId);
         return updated;
     }
@@ -205,6 +208,7 @@ public class AuthServiceImpl implements AuthService {
         profileProjectRepository.deleteByUserId(userId);
         readinessSnapshotRepository.deleteByUserId(userId);
         analysisHistoryRepository.deleteByUserId(userId);
+        customGoalRepository.deleteByUserId(userId); // la base también los borra en cascada con la cuenta
         sessionRepository.deleteByUserId(userId);
         userRepository.deleteById(userId);
     }

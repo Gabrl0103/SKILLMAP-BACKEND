@@ -43,6 +43,12 @@ public class ReadinessSnapshotRepositoryImpl implements ReadinessSnapshotReposit
         jpaRepository.deleteByUserId(userId);
     }
 
+    @Override
+    @Transactional
+    public void deleteByUserIdAndGoalId(Long userId, Long goalId) {
+        jpaRepository.deleteByUserIdAndGoalId(userId, goalId);
+    }
+
     private static ReadinessSnapshot toDomain(ReadinessSnapshotEntity entity) {
         return new ReadinessSnapshot(entity.getId(), entity.getUserId(), entity.getGoalId(), entity.getPercentage(),
                 entity.getCapturedOn(), entity.getCapturedAt());

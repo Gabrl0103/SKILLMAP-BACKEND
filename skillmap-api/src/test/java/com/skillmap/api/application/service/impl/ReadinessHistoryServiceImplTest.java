@@ -252,6 +252,11 @@ class ReadinessHistoryServiceImplTest {
             rows.removeIf(r -> r.userId().equals(userId));
         }
 
+        @Override
+        public void deleteByUserIdAndGoalId(Long userId, Long goalId) {
+            rows.removeIf(r -> r.userId().equals(userId) && r.goalId().equals(goalId));
+        }
+
         private Stream<ReadinessSnapshot> rowsOf(Long userId, Long goalId) {
             return rows.stream().filter(r -> r.userId().equals(userId) && r.goalId().equals(goalId));
         }
