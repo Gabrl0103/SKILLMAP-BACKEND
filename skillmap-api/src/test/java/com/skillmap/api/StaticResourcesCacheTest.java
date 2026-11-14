@@ -56,11 +56,12 @@ class StaticResourcesCacheTest {
     }
 
     @Test
-    void apiResponsesAreNotAffected() throws Exception {
+    void apiResponsesAreNeverCached() throws Exception {
         String token = TestAuth.register(mvc);
         MvcResult result = mvc.perform(get("/api/skills").with(TestAuth.bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        assertThat(result.getResponse().getHeader(HttpHeaders.CACHE_CONTROL)).isNull();
+        // Datos de la cuenta: no-store (SecurityHeadersFilter), nunca el no-cache de los estáticos.
+        assertThat(result.getResponse().getHeader(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
     }
 }

@@ -1,5 +1,6 @@
 package com.skillmap.api.presentation.controller;
 
+import jakarta.validation.Valid;
 import com.skillmap.api.application.service.AuthService;
 import com.skillmap.api.domain.exception.AuthenticationRequiredException;
 import com.skillmap.api.domain.model.IssuedSession;
@@ -45,13 +46,13 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         IssuedSession session = authService.register(request.name(), request.email(), request.password());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(session));
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         return toResponse(authService.login(request.email(), request.password(), httpRequest.getRemoteAddr()));
     }
 
@@ -69,7 +70,7 @@ public class AuthController {
 
     @PatchMapping("/me")
     public UserResponse updateMe(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                 @RequestBody UpdateProfileRequest request) {
+                                 @Valid @RequestBody UpdateProfileRequest request) {
         return toResponse(authService.updateProfile(userId, request.name(), request.headline()));
     }
 
@@ -84,7 +85,7 @@ public class AuthController {
     @PutMapping("/me/password")
     public ResponseEntity<Void> changePassword(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
                                                @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
-                                               @RequestBody ChangePasswordRequest request,
+                                               @Valid @RequestBody ChangePasswordRequest request,
                                                HttpServletRequest httpRequest) {
         String token = BearerToken.extract(authorization).orElseThrow(AuthenticationRequiredException::new);
         authService.changePassword(userId, token, request.currentPassword(), request.newPassword(),
@@ -94,7 +95,7 @@ public class AuthController {
 
     @DeleteMapping("/me")
     public ResponseEntity<Void> deleteMe(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                         @RequestBody DeleteAccountRequest request,
+                                         @Valid @RequestBody DeleteAccountRequest request,
                                          HttpServletRequest httpRequest) {
         authService.deleteAccount(userId, request.password(), httpRequest.getRemoteAddr());
         return ResponseEntity.noContent().build();

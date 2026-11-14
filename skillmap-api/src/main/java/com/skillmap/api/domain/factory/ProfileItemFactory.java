@@ -3,6 +3,7 @@ package com.skillmap.api.domain.factory;
 import com.skillmap.api.domain.exception.InvalidProfileDataException;
 import com.skillmap.api.domain.model.ProfileLink;
 import com.skillmap.api.domain.model.ProfileProject;
+import com.skillmap.api.domain.service.TextRules;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -14,7 +15,8 @@ import java.util.Set;
 /**
  * Crea enlaces y proyectos del perfil válidos, sin espacios de sobra. Los largos se cuentan en
  * caracteres (un emoji cuenta uno). Solo se aceptan URLs http o https con dominio: javascript:,
- * data:, file: y similares se rechazan. Los mensajes nunca repiten lo recibido.
+ * data:, file: y similares se rechazan. Ningún texto admite caracteres de control (la descripción sí admite saltos de
+ * línea). Los mensajes nunca repiten lo recibido.
  */
 public final class ProfileItemFactory {
 
@@ -25,6 +27,7 @@ public final class ProfileItemFactory {
 
     private static final String LABEL = "La etiqueta del enlace debe tener entre 1 y 40 caracteres.";
     private static final String NAME = "El nombre del proyecto debe tener entre 1 y 60 caracteres.";
+    private static final String CONTROL_CHARS = "El texto tiene caracteres no permitidos.";
     private static final String INVALID_URL =
             "La URL debe empezar por http:// o https:// (por ejemplo, https://mi-portfolio.com).";
 
@@ -43,7 +46,7 @@ public final class ProfileItemFactory {
     public static ProfileProject project(Long id, Long userId, String name, String description, String url,
                                          List<String> tags) {
         return new ProfileProject(id, userId, required(name, 60, NAME),
-                optional(description, 240, "La descripción del proyecto puede tener como máximo 240 caracteres."),
+                multiline(description, 240, "La descripción del proyecto puede tener como máximo 240 caracteres."),
                 webUrl(url), tags(tags));
     }
 
@@ -55,11 +58,23 @@ public final class ProfileItemFactory {
         return text;
     }
 
-    /** Sin espacios al inicio ni al final; vacío queda en null. */
+    /** Una línea, sin espacios al inicio ni al final; vacío queda en null. */
     private static String optional(String value, int max, String message) {
+        return clean(value, max, message, false);
+    }
+
+    /** Como optional, pero admite saltos de línea y tabuladores. */
+    private static String multiline(String value, int max, String message) {
+        return clean(value, max, message, true);
+    }
+
+    private static String clean(String value, int max, String message, boolean allowLineBreaks) {
         String stripped = value == null ? "" : value.strip();
         if (stripped.codePointCount(0, stripped.length()) > max) {
             throw new InvalidProfileDataException(message);
+        }
+        if (TextRules.hasControlChars(stripped, allowLineBreaks)) {
+            throw new InvalidProfileDataException(CONTROL_CHARS);
         }
         return stripped.isEmpty() ? null : stripped;
     }
@@ -72,6 +87,9 @@ public final class ProfileItemFactory {
         }
         if (stripped.length() > MAX_URL_LENGTH) {
             throw new InvalidProfileDataException("La URL puede tener como máximo 2048 caracteres.");
+        }
+        if (TextRules.hasControlChars(stripped, false)) {
+            throw new InvalidProfileDataException(INVALID_URL);
         }
         try {
             URI uri = new URI(stripped);

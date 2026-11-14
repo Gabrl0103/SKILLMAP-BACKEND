@@ -30,7 +30,14 @@ public record AccountExportResponse(
     public static final String FORMAT = "cenit-export";
     public static final int VERSION = 1;
 
+    /** toString enmascara el correo (Spring registra en DEBUG lo que escribe). */
     public record Account(String name, String email, String headline, Instant createdAt) {
+
+        @Override
+        public String toString() {
+            return "Account[name=" + name + ", email=" + LogMask.email(email) + ", headline=" + headline
+                    + ", createdAt=" + createdAt + "]";
+        }
     }
 
     public record Goal(String title) {

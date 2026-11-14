@@ -26,12 +26,12 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public Optional<User> findByEmail(String email) {
-        return jpaRepository.findByEmail(email).map(UserRepositoryImpl::toDomain);
+        return jpaRepository.findFirstByEmailIgnoreCaseOrderByIdAsc(email).map(UserRepositoryImpl::toDomain);
     }
 
     @Override
     public boolean existsByEmail(String email) {
-        return jpaRepository.existsByEmail(email);
+        return jpaRepository.existsByEmailIgnoreCase(email);
     }
 
     @Override

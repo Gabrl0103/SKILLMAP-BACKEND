@@ -171,10 +171,16 @@ class AccountControllerTest {
 
     @ParameterizedTest
     @CsvSource(delimiter = '|', quoteCharacter = '`', value = {
-            "{\"name\":\"\"}                 | El nombre debe tener entre 1 y 60 caracteres.",
-            "{\"name\":\"   \"}              | El nombre debe tener entre 1 y 60 caracteres.",
-            "{\"name\":\"%n\"}               | El nombre debe tener entre 1 y 60 caracteres.",
-            "{\"name\":\"%e\"}               | El nombre es demasiado largo: con emojis caben menos de 60 caracteres.",
+            "{\"name\":\"\"}                 | El nombre debe tener entre 2 y 60 caracteres.",
+            "{\"name\":\"   \"}              | El nombre debe tener entre 2 y 60 caracteres.",
+            "{\"name\":\"A\"}                | El nombre debe tener entre 2 y 60 caracteres.",
+            "{\"name\":\"%n\"}               | El nombre debe tener entre 2 y 60 caracteres.",
+            "{\"name\":\"%e\"}               | El nombre debe tener entre 2 y 60 caracteres.",
+            "{\"name\":\"<b>Ana</b>\"}       | El nombre solo puede tener letras, espacios, guiones y apóstrofos.",
+            "{\"name\":\"Ana2\"}             | El nombre solo puede tener letras, espacios, guiones y apóstrofos.",
+            "{\"name\":\"Ana\\u0007\"}      | El nombre solo puede tener letras, espacios, guiones y apóstrofos.",
+            "{\"headline\":\"Hola\\u0000\"} | El titular tiene caracteres no permitidos.",
+            "{\"name\":\"Ana\",\"rol\":\"admin\"} | La petición incluye un campo que no se admite.",
             "{\"headline\":\"%h\"}           | El titular puede tener como máximo 80 caracteres.",
             "{\"name\":\"Otra\",\"headline\":\"%h\"} | El titular puede tener como máximo 80 caracteres.",
             "{\"name\":[\"a\"]}              | El campo 'name' no tiene un valor válido.",
@@ -244,16 +250,21 @@ class AccountControllerTest {
 
     @ParameterizedTest
     @CsvSource(delimiter = '|', quoteCharacter = '`', value = {
-            "corta12 | La contraseña debe tener entre 8 y 72 caracteres.",
-            "%long   | La contraseña debe tener entre 8 y 72 caracteres.",
-            "%null   | La contraseña debe tener entre 8 y 72 caracteres.",
-            "%bytes  | La contraseña es demasiado larga: con tildes o emojis caben menos de 72 caracteres."
+            "corta12      | La contraseña debe tener entre 8 y 64 caracteres.",
+            "%long        | La contraseña debe tener entre 8 y 64 caracteres.",
+            "%null        | La contraseña debe tener entre 8 y 64 caracteres.",
+            "%bytes       | La contraseña es demasiado larga: con tildes o emojis caben menos de 64 caracteres.",
+            "sinNumerosAqui | La contraseña debe incluir al menos una letra y un número.",
+            "`clave12345 `  | La contraseña no puede empezar ni terminar con espacios.",
+            "qwerty123    | Esa contraseña es muy común. Elige otra más difícil de adivinar.",
+            "%email       | La contraseña no puede ser igual a tu correo ni a tu nombre."
     })
     void newPasswordFollowsTheRegistrationRules(String newPassword, String message) throws Exception {
         String email = uniqueEmail();
-        String token = tokenOf(mvc.perform(register("Ana", email, PASSWORD)));
+        String token = tokenOf(mvc.perform(register("Ana Ruiz", email, PASSWORD)));
         String value = switch (newPassword) {
-            case "%long" -> "p".repeat(73);
+            case "%email" -> email;
+            case "%long" -> "p1".repeat(33);
             case "%bytes" -> "ñ".repeat(40);
             case "%null" -> null;
             default -> newPassword;
@@ -270,11 +281,14 @@ class AccountControllerTest {
     }
 
     @Test
-    void passwordOfExactly8CharactersIsAccepted() throws Exception {
+    void passwordOf8And64CharactersIsAccepted() throws Exception {
         String email = uniqueEmail();
         String token = tokenOf(mvc.perform(register("Ana", email, PASSWORD)));
-        mvc.perform(changePassword(token, PASSWORD, "12345678")).andExpect(status().isNoContent());
-        mvc.perform(login(email, "12345678")).andExpect(status().isOk());
+        mvc.perform(changePassword(token, PASSWORD, "abcd123x")).andExpect(status().isNoContent());
+        mvc.perform(login(email, "abcd123x")).andExpect(status().isOk());
+        String longest = "a1" + "x".repeat(62);
+        mvc.perform(changePassword(token, "abcd123x", longest)).andExpect(status().isNoContent());
+        mvc.perform(login(email, longest)).andExpect(status().isOk());
     }
 
     // ---------- Límite de intentos compartido con el login ----------
@@ -292,7 +306,7 @@ class AccountControllerTest {
         mvc.perform(login(email, "mala-5")).andExpect(status().isUnauthorized());
 
         // Bloqueado en los tres aunque ahora la contraseña sea la buena, y sin cerrar la sesión.
-        String blocked = "Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo.";
+        String blocked = "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos.";
         mvc.perform(login(email, PASSWORD))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.message").value(blocked));
@@ -303,11 +317,11 @@ class AccountControllerTest {
         mvc.perform(get("/api/auth/me").with(TestAuth.bearer(token))).andExpect(status().isOk());
         assertThat(usersTable.findByEmail(email)).isPresent();
 
-        // Desde otra IP no está bloqueado.
+        // El bloqueo es del correo: desde otra IP tampoco se puede.
         mvc.perform(changePassword(token, PASSWORD, NEW_PASSWORD).with(request -> {
             request.setRemoteAddr("10.0.0.3");
             return request;
-        })).andExpect(status().isNoContent());
+        })).andExpect(status().isTooManyRequests());
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.skillmap.api.presentation.controller;
 
+import jakarta.validation.Valid;
 import com.skillmap.api.application.service.ProfileService;
 import com.skillmap.api.domain.model.ProfileLink;
 import com.skillmap.api.domain.model.ProfileProject;
@@ -43,14 +44,14 @@ public class ProfileController {
 
     @PostMapping("/links")
     public ResponseEntity<ProfileLinkResponse> addLink(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                                       @RequestBody ProfileLinkRequest request) {
+                                                       @Valid @RequestBody ProfileLinkRequest request) {
         ProfileLink link = profileService.addLink(userId, request.label(), request.url());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(link));
     }
 
     @PutMapping("/links/{id}")
     public ProfileLinkResponse updateLink(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                          @PathVariable Long id, @RequestBody ProfileLinkRequest request) {
+                                          @PathVariable Long id, @Valid @RequestBody ProfileLinkRequest request) {
         return toResponse(profileService.updateLink(userId, id, request.label(), request.url()));
     }
 
@@ -68,7 +69,7 @@ public class ProfileController {
 
     @PostMapping("/projects")
     public ResponseEntity<ProfileProjectResponse> addProject(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                                             @RequestBody ProfileProjectRequest request) {
+                                                             @Valid @RequestBody ProfileProjectRequest request) {
         ProfileProject project = profileService.addProject(userId, request.name(), request.description(),
                 request.url(), request.tags());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(project));
@@ -76,7 +77,7 @@ public class ProfileController {
 
     @PutMapping("/projects/{id}")
     public ProfileProjectResponse updateProject(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                                @PathVariable Long id, @RequestBody ProfileProjectRequest request) {
+                                                @PathVariable Long id, @Valid @RequestBody ProfileProjectRequest request) {
         return toResponse(profileService.updateProject(userId, id, request.name(), request.description(),
                 request.url(), request.tags()));
     }

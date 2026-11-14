@@ -1,5 +1,6 @@
 package com.skillmap.api.presentation.controller;
 
+import jakarta.validation.Valid;
 import com.skillmap.api.domain.exception.AiNotConfiguredException;
 import com.skillmap.api.domain.port.JobSkillExtractor;
 import com.skillmap.api.domain.service.JobDescriptionValidator;
@@ -44,7 +45,7 @@ public class AiController {
     }
 
     @PostMapping("/extract-skills")
-    public ExtractSkillsResponse extractSkills(@RequestBody ExtractSkillsRequest request,
+    public ExtractSkillsResponse extractSkills(@Valid @RequestBody ExtractSkillsRequest request,
                                                HttpServletRequest httpRequest) {
         String jobDescription = request.jobDescription();
         JobDescriptionValidator.validate(jobDescription);
