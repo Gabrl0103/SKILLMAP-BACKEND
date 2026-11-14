@@ -12,6 +12,9 @@ public final class SkillPersistenceMapper {
     }
 
     public static Skill toDomain(SkillEntity entity) {
+        if (entity.getOwnerId() != null) {
+            return Skill.custom(entity.getId(), entity.getName(), entity.getOwnerId(), entity.getCustomGoalId());
+        }
         return SkillFactory.reconstruct(
                 entity.getId(),
                 entity.getName(),
@@ -30,7 +33,9 @@ public final class SkillPersistenceMapper {
                 skill.getCategory(),
                 skill.getDemandPercentage(),
                 skill.getStatus(),
-                skill.getDemandSource()
+                skill.getDemandSource(),
+                skill.getOwnerId(),
+                skill.getGoalId()
         );
     }
 }

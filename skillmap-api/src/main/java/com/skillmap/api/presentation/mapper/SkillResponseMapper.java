@@ -14,9 +14,11 @@ public final class SkillResponseMapper {
                 skill.getName(),
                 skill.getCategory(),
                 skill.getDemandPercentage(),
-                skill.getDemandSource().name(),
+                skill.hasDemandData() ? skill.getDemandSource().name() : SkillResponse.NO_DEMAND,
                 skill.getStatus().name(),
-                skill.getStatusUpdatedAt()
+                skill.getStatusUpdatedAt(),
+                skill.isCustom(),
+                skill.getGoalId()
         );
     }
 }

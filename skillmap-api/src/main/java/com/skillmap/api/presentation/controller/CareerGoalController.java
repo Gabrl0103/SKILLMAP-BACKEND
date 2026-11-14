@@ -4,11 +4,14 @@ import jakarta.validation.Valid;
 import com.skillmap.api.application.service.CareerGoalService;
 import com.skillmap.api.application.service.CustomGoalService;
 import com.skillmap.api.application.service.ReadinessHistoryService;
+import com.skillmap.api.application.service.SkillSuggestionService;
 import com.skillmap.api.presentation.dto.CustomGoalDeletedResponse;
 import com.skillmap.api.presentation.dto.CustomGoalRequest;
 import com.skillmap.api.presentation.dto.GoalResponse;
 import com.skillmap.api.presentation.dto.ReadinessPointResponse;
 import com.skillmap.api.presentation.dto.ReadinessResponse;
+import com.skillmap.api.presentation.dto.SkillSuggestionRequest;
+import com.skillmap.api.presentation.dto.SkillSuggestionResponse;
 import com.skillmap.api.presentation.filter.AuthenticationFilter;
 import com.skillmap.api.presentation.mapper.GoalResponseMapper;
 import org.springframework.http.HttpStatus;
@@ -38,12 +41,14 @@ public class CareerGoalController {
     private final CareerGoalService goalService;
     private final CustomGoalService customGoals;
     private final ReadinessHistoryService readinessHistory;
+    private final SkillSuggestionService suggestions;
 
     public CareerGoalController(CareerGoalService goalService, CustomGoalService customGoals,
-                                ReadinessHistoryService readinessHistory) {
+                                ReadinessHistoryService readinessHistory, SkillSuggestionService suggestions) {
         this.goalService = goalService;
         this.customGoals = customGoals;
         this.readinessHistory = readinessHistory;
+        this.suggestions = suggestions;
     }
 
     /** Los base y, después, los propios del usuario (custom: true, con sus fechas). */
@@ -90,7 +95,8 @@ public class CareerGoalController {
     public GoalResponse createCustom(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
                                      @Valid @RequestBody CustomGoalRequest request) {
         return GoalResponseMapper.toResponse(
-                customGoals.create(userId, request.name(), request.description(), request.skillIds()));
+                customGoals.create(userId, request.name(), request.description(), request.skillIds(),
+                        request.newSkillsOrEmpty()));
     }
 
     /** 403 si es un objetivo base; 404 si no es suyo; 400 / 409 como al crear. */
@@ -98,7 +104,18 @@ public class CareerGoalController {
     public GoalResponse updateCustom(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId, @PathVariable Long id,
                                      @Valid @RequestBody CustomGoalRequest request) {
         return GoalResponseMapper.toResponse(
-                customGoals.update(userId, id, request.name(), request.description(), request.skillIds()));
+                customGoals.update(userId, id, request.name(), request.description(), request.skillIds(),
+                        request.newSkillsOrEmpty()));
+    }
+
+    /**
+     * Habilidades sugeridas para el nombre de un rol (diccionario; si no coincide, la IA del Analizador como respaldo).
+     * No guarda nada. 400 si el nombre no es válido; sin sugerencias: 200 con source "none" y la lista vacía.
+     */
+    @PostMapping("/custom/suggestions")
+    public SkillSuggestionResponse suggestSkills(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
+                                                 @Valid @RequestBody SkillSuggestionRequest request) {
+        return SkillSuggestionResponse.from(suggestions.suggest(userId, request.role()));
     }
 
     /** Borra el objetivo y su historial. Responde el objetivo elegido después (cambia si se borró el elegido). */

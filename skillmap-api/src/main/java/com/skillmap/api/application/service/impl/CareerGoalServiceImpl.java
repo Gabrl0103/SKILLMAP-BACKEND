@@ -50,6 +50,11 @@ public class CareerGoalServiceImpl implements CareerGoalService {
         return goals.require(userId, id);
     }
 
+    static final Comparator<Skill> GAP_ORDER = Comparator
+            .comparing(Skill::isCustom)
+            .thenComparing(Comparator.comparingInt(Skill::getDemandPercentage).reversed())
+            .thenComparing(Skill::getId, Comparator.nullsLast(Comparator.naturalOrder()));
+
     /** Igual para un objetivo base que para uno propio del usuario (CareerGoal.calculateReadiness). */
     @Override
     public GoalReadiness getReadiness(Long userId, Long goalId) {
@@ -61,9 +66,11 @@ public class CareerGoalServiceImpl implements CareerGoalService {
                 .filter(s -> goalSkillIds.contains(s.getId()))
                 .collect(Collectors.toMap(Skill::getId, Function.identity()));
 
+        // Primero las del catálogo, de más a menos demanda; al final las propias (sin datos de mercado), en el orden en
+        // que se agregaron.
         List<Skill> gaps = goalSkills.values().stream()
                 .filter(s -> s.getStatus() != SkillStatus.MASTERED)
-                .sorted(Comparator.comparingInt(Skill::getDemandPercentage).reversed())
+                .sorted(GAP_ORDER)
                 .toList();
 
         int total = goal.getSkills().size();

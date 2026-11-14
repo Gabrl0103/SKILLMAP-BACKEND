@@ -135,6 +135,36 @@ las crea en una base existente; `UserBaseGoalBackfill` da a las cuentas que ya t
 anterior". Al eliminar la cuenta se borran también (y la base los borra en cascada si se borra la fila del usuario). Lo
 prueban `CustomGoalFactoryTest`, `CustomGoalTest` y `LegacyCustomGoalsTest` (base de la versión anterior).
 
+### Habilidades propias y sugerencias por rol
+
+Un objetivo propio puede llevar, además de habilidades del catálogo, **habilidades propias** que escribe el usuario
+(2 a 40 caracteres, texto plano, sin repetir sin mayúsculas una del catálogo ni otra del mismo objetivo; entre todas, de
+3 a 8). Son del usuario y de ese objetivo: categoría `Personalizada`, estados, ruta, %, "Tu semana", Mapa y Habilidades
+igual que las demás, pero **sin datos de mercado** (no se inventa demanda): no entran en el cálculo de demanda, no se
+buscan en las ofertas y van al final de las brechas, en el orden en que se agregaron.
+
+- `POST /api/goals/custom` y `PUT /api/goals/custom/{id}` — campo opcional `"newSkills": ["Figma", ...]`: se crean
+  como habilidades propias del objetivo y van al final de su lista. `skillIds` acepta ids del catálogo y de las propias
+  que ya tiene ese objetivo; al editar, las propias que no vienen en `skillIds` se borran con su progreso. 400 si una
+  nueva repite una del catálogo ("elígela de la lista") o si el total no queda entre 3 y 8. Sin `newSkills`, igual que
+  antes.
+- `GET /api/skills` (y `GET /api/skills/{id}`, brechas de readiness) — campos nuevos al final: `custom` (`true` en las
+  propias) y `goalId` (su objetivo; null en las del catálogo). Las propias traen `demandSource: "NONE"` y
+  `demandPercentage: 0`, que no debe mostrarse como porcentaje. Las de otro usuario no existen (404).
+- `POST /api/goals/custom/suggestions` — `{"role": "Diseñador UX"}` → `{"source": "dictionary"|"ai"|"none",
+  "skills": [{"skillId", "name", "category", "custom"}]}`: de 5 a 8 sugerencias (como mucho 8); `skillId` null y
+  `custom: true` en las que no están en el catálogo (se agregan con `newSkills`). No guarda nada.
+  1. Diccionario de roles sin IA (`RoleSkillDictionary`: tecnología, datos, diseño, producto, marketing digital y
+     soporte; se amplía agregando un perfil). Coincide por palabras completas, sin mayúsculas ni tildes, y gana la
+     palabra clave más específica.
+  2. Si no coincide, la misma IA del Analizador como respaldo, con tiempo máximo `skillmap.goals.suggest-ai-timeout`
+     (8 s); si falla o tarda, `source: "none"` y lista vacía (nunca un error). Solo se llama al pulsar "Sugerir".
+
+Persistencia: columnas `skills.owner_id` y `skills.custom_goal_id` (nullables: `ddl-auto=update` las agrega y las filas
+de antes quedan como catálogo). `SkillRepository.findAll()` es solo el catálogo global; `UserSkillCatalog` suma las del
+usuario. Se borran con su objetivo, al quitarlas de él y con la cuenta. Lo prueban `RoleSkillDictionaryTest`,
+`CustomSkillRulesTest`, `SkillSuggestionServiceImplTest`, `CustomSkillsTest` y `LegacyCustomSkillsTest`.
+
 ## Próximos commits
 - CareerGoal + GoalSkill (relación objetivo–habilidad y % de demanda)
 - Migrar de H2 a PostgreSQL

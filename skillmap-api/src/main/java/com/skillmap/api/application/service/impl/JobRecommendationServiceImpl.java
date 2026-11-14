@@ -51,7 +51,9 @@ public class JobRecommendationServiceImpl implements JobRecommendationService {
             return List.of();
         }
         Set<Long> goalSkillIds = goal.get().getSkills().stream().map(GoalSkill::skillId).collect(Collectors.toSet());
-        List<Skill> catalog = userSkills.findAll(userId);
+        // Solo el catálogo: las habilidades propias no se buscan en las ofertas (no tienen datos de mercado). Un objetivo
+        // hecho solo de propias no tiene ofertas comparables y devuelve una lista vacía.
+        List<Skill> catalog = userSkills.findCatalog(userId);
         List<JobPosting> postings = postingRepository.findAll();
         Map<Long, Set<Long>> detected = detector.detect(postings, catalog);
         return JobRecommender.recommend(postings, p -> detected.getOrDefault(p.id(), Set.of()),

@@ -42,6 +42,9 @@ class JobAnalyzerServiceImplTest {
         @Override public List<Skill> findAll() { return CATALOG; }
         @Override public Optional<Skill> findById(Long id) { return Optional.empty(); }
         @Override public Skill save(Skill skill) { return skill; }
+        @Override public List<Skill> findByOwner(Long ownerId) { return List.of(); }
+        @Override public void deleteOwned(Long ownerId, java.util.Collection<Long> ids) { }
+        @Override public void deleteByOwner(Long ownerId) { }
     };
 
     private static final Long USER = 7L;

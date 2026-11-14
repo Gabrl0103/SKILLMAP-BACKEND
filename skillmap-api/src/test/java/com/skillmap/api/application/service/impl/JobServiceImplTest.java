@@ -513,5 +513,9 @@ class JobServiceImplTest {
             skills.put(skill.getId(), skill);
             return skill;
         }
+
+        @Override public List<Skill> findByOwner(Long ownerId) { return List.of(); }
+        @Override public void deleteOwned(Long ownerId, java.util.Collection<Long> ids) { }
+        @Override public void deleteByOwner(Long ownerId) { }
     }
 }

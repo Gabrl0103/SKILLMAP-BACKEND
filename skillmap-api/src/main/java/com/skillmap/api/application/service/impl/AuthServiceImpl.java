@@ -23,6 +23,7 @@ import com.skillmap.api.domain.repository.ProfileLinkRepository;
 import com.skillmap.api.domain.repository.ProfileProjectRepository;
 import com.skillmap.api.domain.repository.ReadinessSnapshotRepository;
 import com.skillmap.api.domain.repository.SessionRepository;
+import com.skillmap.api.domain.repository.SkillRepository;
 import com.skillmap.api.domain.repository.UserRepository;
 import com.skillmap.api.domain.repository.UserSkillRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,6 +47,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final SessionRepository sessionRepository;
     private final UserSkillRepository userSkillRepository;
+    private final SkillRepository skillRepository;
     private final ProfileLinkRepository profileLinkRepository;
     private final ProfileProjectRepository profileProjectRepository;
     private final GoalCatalog goalCatalog;
@@ -64,6 +66,7 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(UserRepository userRepository,
                            SessionRepository sessionRepository,
                            UserSkillRepository userSkillRepository,
+                           SkillRepository skillRepository,
                            ProfileLinkRepository profileLinkRepository,
                            ProfileProjectRepository profileProjectRepository,
                            GoalCatalog goalCatalog,
@@ -79,6 +82,7 @@ public class AuthServiceImpl implements AuthService {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.userSkillRepository = userSkillRepository;
+        this.skillRepository = skillRepository;
         this.profileLinkRepository = profileLinkRepository;
         this.profileProjectRepository = profileProjectRepository;
         this.goalCatalog = goalCatalog;
@@ -215,6 +219,7 @@ public class AuthServiceImpl implements AuthService {
         readinessSnapshotRepository.deleteByUserId(userId);
         analysisHistoryRepository.deleteByUserId(userId);
         customGoalRepository.deleteByUserId(userId); // la base también los borra en cascada con la cuenta
+        skillRepository.deleteByOwner(userId); // sus habilidades propias (después de los objetivos que las usan)
         sessionRepository.deleteByUserId(userId);
         userRepository.deleteById(userId);
     }
