@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 /**
  * Objetivo laboral (ej: "Frontend Senior"). Agrupa las habilidades que exige
  * y sabe calcular qué tan cerca está el usuario de alcanzarlo.
+ * ownerId: null en los objetivos base (para todos); el id del usuario en un objetivo propio (ver CustomGoal), que
+ * se calcula con las mismas reglas.
  */
 public class CareerGoal {
 
@@ -15,13 +17,26 @@ public class CareerGoal {
     private final String title;
     private final String description;
     private final List<GoalSkill> skills;
+    private final Long ownerId;
 
     public CareerGoal(Long id, String title, String description, List<GoalSkill> skills) {
+        this(id, title, description, skills, null);
+    }
+
+    public CareerGoal(Long id, String title, String description, List<GoalSkill> skills, Long ownerId) {
         this.id = id;
         this.title = title;
         this.description = description;
         this.skills = List.copyOf(skills);
+        this.ownerId = ownerId;
     }
+
+    /** Objetivo propio de un usuario (no uno base). */
+    public boolean isCustom() {
+        return ownerId != null;
+    }
+
+    public Long getOwnerId() { return ownerId; }
 
     /**
      * Regla de negocio: el readiness es ponderado. Dominar una habilidad de

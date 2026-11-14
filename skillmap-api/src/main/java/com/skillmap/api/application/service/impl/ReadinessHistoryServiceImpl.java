@@ -35,7 +35,7 @@ public class ReadinessHistoryServiceImpl implements ReadinessHistoryService {
 
     @Override
     public void recordSkillChange(Long userId, Long skillId) {
-        for (CareerGoal goal : goalService.getAllGoals()) {
+        for (CareerGoal goal : goalService.getGoals(userId)) { // los base y los propios del usuario
             if (goal.getSkills().stream().anyMatch(gs -> gs.skillId().equals(skillId))) {
                 recordGoal(userId, goal.getId());
             }
@@ -52,7 +52,7 @@ public class ReadinessHistoryServiceImpl implements ReadinessHistoryService {
         if (days < 1 || days > MAX_DAYS) {
             throw new InvalidHistoryRangeException(MAX_DAYS);
         }
-        goalService.getGoalById(goalId); // 404 si no existe
+        goalService.getGoal(userId, goalId); // 404 si no existe o es un objetivo propio de otro usuario
         if (snapshotRepository.findLatest(userId, goalId).isEmpty()) {
             recordGoal(userId, goalId);
         }

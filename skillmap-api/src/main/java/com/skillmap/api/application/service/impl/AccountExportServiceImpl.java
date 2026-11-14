@@ -7,7 +7,6 @@ import com.skillmap.api.domain.model.CareerGoal;
 import com.skillmap.api.domain.model.ReadinessSnapshot;
 import com.skillmap.api.domain.model.User;
 import com.skillmap.api.domain.repository.AnalysisHistoryRepository;
-import com.skillmap.api.domain.repository.CareerGoalRepository;
 import com.skillmap.api.domain.repository.ProfileLinkRepository;
 import com.skillmap.api.domain.repository.ProfileProjectRepository;
 import com.skillmap.api.domain.repository.ReadinessSnapshotRepository;
@@ -32,7 +31,7 @@ public class AccountExportServiceImpl implements AccountExportService {
     private static final LocalDate SINCE_ALWAYS = LocalDate.of(2000, 1, 1);
 
     private final UserRepository userRepository;
-    private final CareerGoalRepository careerGoalRepository;
+    private final GoalCatalog goalCatalog;
     private final UserSkillCatalog catalog;
     private final ProfileLinkRepository profileLinkRepository;
     private final ProfileProjectRepository profileProjectRepository;
@@ -41,7 +40,7 @@ public class AccountExportServiceImpl implements AccountExportService {
     private final Clock clock;
 
     public AccountExportServiceImpl(UserRepository userRepository,
-                                    CareerGoalRepository careerGoalRepository,
+                                    GoalCatalog goalCatalog,
                                     UserSkillCatalog catalog,
                                     ProfileLinkRepository profileLinkRepository,
                                     ProfileProjectRepository profileProjectRepository,
@@ -49,7 +48,7 @@ public class AccountExportServiceImpl implements AccountExportService {
                                     ReadinessSnapshotRepository readinessSnapshotRepository,
                                     Clock clock) {
         this.userRepository = userRepository;
-        this.careerGoalRepository = careerGoalRepository;
+        this.goalCatalog = goalCatalog;
         this.catalog = catalog;
         this.profileLinkRepository = profileLinkRepository;
         this.profileProjectRepository = profileProjectRepository;
@@ -61,7 +60,7 @@ public class AccountExportServiceImpl implements AccountExportService {
     @Override
     public AccountExport export(Long userId) {
         User user = userRepository.findById(userId).orElseThrow(AuthenticationRequiredException::new);
-        List<CareerGoal> goals = careerGoalRepository.findAll();
+        List<CareerGoal> goals = goalCatalog.findAll(userId); // los base y los propios del usuario
         CareerGoal goal = user.getGoalId() == null ? null
                 : goals.stream().filter(g -> g.getId().equals(user.getGoalId())).findFirst().orElse(null);
         List<ReadinessSnapshot> readiness = new ArrayList<>();

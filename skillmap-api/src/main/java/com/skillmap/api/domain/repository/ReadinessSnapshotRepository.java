@@ -20,4 +20,7 @@ public interface ReadinessSnapshotRepository {
 
     /** Todos los del usuario (al eliminar su cuenta). */
     void deleteByUserId(Long userId);
+
+    /** Los del usuario en ese objetivo (al borrar un objetivo propio). */
+    void deleteByUserIdAndGoalId(Long userId, Long goalId);
 }

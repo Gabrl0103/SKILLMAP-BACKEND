@@ -39,12 +39,17 @@ public class UserEntity {
     @Column(name = "goal_id")
     private Long goalId;
 
+    // Último objetivo base elegido (al borrar el objetivo propio elegido se vuelve a él). Nullable: ddl-auto=update la
+    // agrega a las bases existentes sin tocar sus filas.
+    @Column(name = "base_goal_id")
+    private Long baseGoalId;
+
     protected UserEntity() {
         // Requerido por JPA.
     }
 
     public UserEntity(Long id, String name, String email, String passwordHash, Instant createdAt, String headline,
-                      Long goalId) {
+                      Long goalId, Long baseGoalId) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -52,6 +57,7 @@ public class UserEntity {
         this.createdAt = createdAt;
         this.headline = headline;
         this.goalId = goalId;
+        this.baseGoalId = baseGoalId;
     }
 
     public Long getId() { return id; }
@@ -61,4 +67,5 @@ public class UserEntity {
     public Instant getCreatedAt() { return createdAt; }
     public String getHeadline() { return headline; }
     public Long getGoalId() { return goalId; }
+    public Long getBaseGoalId() { return baseGoalId; }
 }

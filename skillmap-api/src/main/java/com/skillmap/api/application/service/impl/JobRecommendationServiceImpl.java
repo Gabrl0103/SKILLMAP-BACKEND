@@ -1,7 +1,6 @@
 package com.skillmap.api.application.service.impl;
 
 import com.skillmap.api.application.service.JobRecommendationService;
-import com.skillmap.api.domain.exception.CareerGoalNotFoundException;
 import com.skillmap.api.domain.exception.InvalidRecommendationLimitException;
 import com.skillmap.api.domain.model.CareerGoal;
 import com.skillmap.api.domain.model.GoalSkill;
@@ -9,7 +8,6 @@ import com.skillmap.api.domain.model.JobPosting;
 import com.skillmap.api.domain.model.JobRecommendation;
 import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.model.User;
-import com.skillmap.api.domain.repository.CareerGoalRepository;
 import com.skillmap.api.domain.repository.JobPostingRepository;
 import com.skillmap.api.domain.repository.UserRepository;
 import com.skillmap.api.domain.service.JobRecommender;
@@ -26,16 +24,16 @@ import java.util.stream.Collectors;
 public class JobRecommendationServiceImpl implements JobRecommendationService {
 
     private final UserRepository userRepository;
-    private final CareerGoalRepository goalRepository;
+    private final GoalCatalog goals;
     private final JobPostingRepository postingRepository;
     private final UserSkillCatalog userSkills;
     private final JobSkillDetector detector;
 
-    public JobRecommendationServiceImpl(UserRepository userRepository, CareerGoalRepository goalRepository,
+    public JobRecommendationServiceImpl(UserRepository userRepository, GoalCatalog goals,
                                         JobPostingRepository postingRepository, UserSkillCatalog userSkills,
                                         JobSkillDetector detector) {
         this.userRepository = userRepository;
-        this.goalRepository = goalRepository;
+        this.goals = goals;
         this.postingRepository = postingRepository;
         this.userSkills = userSkills;
         this.detector = detector;
@@ -48,7 +46,7 @@ public class JobRecommendationServiceImpl implements JobRecommendationService {
         }
         Optional<CareerGoal> goal = goalId == null
                 ? goalOf(userId)
-                : Optional.of(goalRepository.findById(goalId).orElseThrow(() -> new CareerGoalNotFoundException(goalId)));
+                : Optional.of(goals.require(userId, goalId));
         if (goal.isEmpty()) {
             return List.of();
         }
@@ -64,7 +62,7 @@ public class JobRecommendationServiceImpl implements JobRecommendationService {
     private Optional<CareerGoal> goalOf(Long userId) {
         Optional<CareerGoal> saved = userRepository.findById(userId)
                 .map(User::getGoalId)
-                .flatMap(goalRepository::findById);
-        return saved.isPresent() ? saved : goalRepository.findAll().stream().findFirst();
+                .flatMap(id -> goals.find(userId, id));
+        return saved.isPresent() ? saved : goals.findAll(userId).stream().findFirst();
     }
 }
