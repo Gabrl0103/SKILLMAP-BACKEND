@@ -66,7 +66,10 @@ public class JobAnalyzerServiceImpl implements JobAnalyzerService {
             engine = CACHE_ENGINE;
         } else {
             String extractorEngine = skillExtractor.engine();
-            required = skillExtractor.extractSkills(text, catalog.values().stream().map(Skill::getName).toList());
+            // Pistas para la IA: solo el catálogo (las habilidades propias del usuario no salen del equipo). Si la IA
+            // detecta una con el mismo nombre que una propia, igual cuenta al clasificar.
+            required = skillExtractor.extractSkills(text, catalog.values().stream()
+                    .filter(skill -> !skill.isCustom()).map(Skill::getName).toList());
             engine = extractorEngine == null || extractorEngine.isBlank() ? UNKNOWN_ENGINE : extractorEngine;
         }
 

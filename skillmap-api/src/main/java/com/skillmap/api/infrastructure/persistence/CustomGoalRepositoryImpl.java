@@ -68,6 +68,7 @@ public class CustomGoalRepositoryImpl implements CustomGoalRepository {
     @Transactional
     public void delete(Long userId, Long id) {
         jpaRepository.findByIdAndUserId(id, userId).ifPresent(jpaRepository::delete);
+        jpaRepository.flush(); // antes de borrar sus habilidades propias (custom_goal_skills las referencia)
     }
 
     @Override

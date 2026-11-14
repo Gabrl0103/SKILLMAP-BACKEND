@@ -4,7 +4,9 @@ import com.skillmap.api.domain.model.Skill;
 import com.skillmap.api.domain.repository.SkillRepository;
 import com.skillmap.api.infrastructure.persistence.mapper.SkillPersistenceMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,7 +26,7 @@ public class SkillRepositoryImpl implements SkillRepository {
 
     @Override
     public List<Skill> findAll() {
-        return jpaRepository.findAll().stream()
+        return jpaRepository.findByOwnerIdIsNullOrderByIdAsc().stream()
                 .map(SkillPersistenceMapper::toDomain)
                 .toList();
     }
@@ -32,6 +34,27 @@ public class SkillRepositoryImpl implements SkillRepository {
     @Override
     public Optional<Skill> findById(Long id) {
         return jpaRepository.findById(id).map(SkillPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public List<Skill> findByOwner(Long ownerId) {
+        return jpaRepository.findByOwnerIdOrderByIdAsc(ownerId).stream()
+                .map(SkillPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void deleteOwned(Long ownerId, Collection<Long> ids) {
+        if (ownerId != null && !ids.isEmpty()) {
+            jpaRepository.deleteOwned(ownerId, ids);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deleteByOwner(Long ownerId) {
+        jpaRepository.deleteByOwner(ownerId);
     }
 
     @Override
