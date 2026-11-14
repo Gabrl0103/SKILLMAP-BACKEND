@@ -97,8 +97,14 @@ class SettingsControllerTest {
     }
 
     @Test
-    void patchUpdatesOnlyGivenFieldsAndIgnoresUnknownOnes() throws Exception {
+    void patchUpdatesOnlyGivenFieldsAndRejectsUnknownOnes() throws Exception {
+        // JSON estricto: un campo desconocido es un 400 sin nombrarlo y no cambia nada.
         perform(json(patch("/api/settings"), "{\"theme\":\"dark\",\"desconocido\":42}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("La petición incluye un campo que no se admite."));
+        perform(get("/api/settings")).andExpect(jsonPath("$.theme").value("light"));
+
+        perform(json(patch("/api/settings"), "{\"theme\":\"dark\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.theme").value("dark"))
                 .andExpect(jsonPath("$.showIntro").value(true))

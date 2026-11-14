@@ -9,7 +9,10 @@ import java.util.Optional;
 
 public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByEmail(String email);
-    boolean existsByEmail(String email);
+
+    /** Sin distinguir mayúsculas: también encuentra una cuenta antigua guardada con mayúsculas. */
+    Optional<UserEntity> findFirstByEmailIgnoreCaseOrderByIdAsc(String email);
+    boolean existsByEmailIgnoreCase(String email);
 
     /**
      * Cuentas de antes de base_goal_id con un objetivo elegido: ese objetivo es base (los propios no existían y sus ids

@@ -36,9 +36,9 @@ import java.util.Optional;
 
 /**
  * Registro, login, sesiones y cuenta (perfil, contraseña y borrado). Ni la contraseña ni el token
- * se registran en logs ni se guardan en claro: de la contraseña queda el hash BCrypt y del token
+ * se registran en logs ni se guardan en claro: de la contraseña queda el hash BCrypt (costo 12) y del token
  * su hash SHA-256. Los intentos fallidos de login, de cambio de contraseña y de borrado cuentan
- * juntos en el mismo limitador (clave correo + IP).
+ * juntos en el mismo limitador (por correo y por IP, con bloqueo creciente).
  */
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -94,35 +94,45 @@ public class AuthServiceImpl implements AuthService {
         this.dummyHash = passwordHasher.hash("dummy-password-for-timing");
     }
 
+    /**
+     * El hash se calcula antes de mirar si el correo existe: así un correo ya registrado tarda lo mismo en responder
+     * que uno nuevo y el tiempo no lo delata.
+     */
     @Override
     public IssuedSession register(String name, String email, String password) {
         UserFactory.validateName(name);
         UserFactory.validateEmail(email);
-        UserFactory.validatePassword(password);
+        UserFactory.validateNewPassword(password, email, UserFactory.normalizeName(name));
+        String passwordHash = passwordHasher.hash(password);
         if (userRepository.existsByEmail(UserFactory.normalizeEmail(email))) {
             throw new EmailAlreadyRegisteredException();
         }
-        User user = userRepository.save(
-                UserFactory.createNew(name, email, passwordHasher.hash(password), clock.instant()));
+        User user = userRepository.save(UserFactory.createNew(name, email, passwordHash, clock.instant()));
         return openSession(user);
     }
 
+    /**
+     * Correo inexistente y contraseña incorrecta dan el mismo mensaje y tardan lo mismo (se compara contra un hash
+     * ficticio del mismo costo). Si el hash guardado es de un costo anterior, se rehace con la contraseña recién
+     * comprobada.
+     */
     @Override
     public IssuedSession login(String email, String password, String clientIp) {
         String normalizedEmail = UserFactory.normalizeEmail(email);
-        String attemptKey = attemptKey(normalizedEmail, clientIp);
-        if (attemptLimiter.isBlocked(attemptKey)) {
-            throw new TooManyLoginAttemptsException();
-        }
+        checkNotBlocked(normalizedEmail, clientIp);
         Optional<User> user = userRepository.findByEmail(normalizedEmail);
         String hash = user.map(User::getPasswordHash).orElse(dummyHash);
         boolean matches = password != null && passwordHasher.matches(password, hash);
         if (user.isEmpty() || !matches) {
-            attemptLimiter.recordFailure(attemptKey);
+            attemptLimiter.recordFailure(normalizedEmail, clientIp);
             throw new InvalidCredentialsException();
         }
-        attemptLimiter.reset(attemptKey);
-        return openSession(user.get());
+        attemptLimiter.reset(normalizedEmail);
+        User account = user.get();
+        if (passwordHasher.needsRehash(account.getPasswordHash())) {
+            account = userRepository.save(account.withPasswordHash(passwordHasher.hash(password)));
+        }
+        return openSession(account);
     }
 
     @Override
@@ -155,14 +165,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public User updateProfile(Long userId, String name, String headline) {
         User user = getUser(userId);
-        if (name != null) {
+        // Un nombre sin cambios no se revisa: una cuenta de antes de las reglas actuales puede seguir editando su titular.
+        boolean nameChanged = name != null && !UserFactory.normalizeName(name).equals(user.getName());
+        if (nameChanged) {
             UserFactory.validateName(name);
         }
         if (headline != null) {
             UserFactory.validateHeadline(headline);
         }
         return userRepository.save(user.withProfile(
-                name == null ? user.getName() : name.strip(),
+                nameChanged ? UserFactory.normalizeName(name) : user.getName(),
                 headline == null ? user.getHeadline() : UserFactory.normalizeHeadline(headline)));
     }
 
@@ -183,13 +195,10 @@ public class AuthServiceImpl implements AuthService {
     public void changePassword(Long userId, String token, String currentPassword, String newPassword,
                                String clientIp) {
         User user = getUser(userId);
-        String attemptKey = attemptKey(user.getEmail(), clientIp);
-        if (attemptLimiter.isBlocked(attemptKey)) {
-            throw new TooManyLoginAttemptsException();
-        }
+        checkNotBlocked(UserFactory.normalizeEmail(user.getEmail()), clientIp);
         // Antes de comprobar la actual: una nueva inválida no gasta un intento.
-        UserFactory.validatePassword(newPassword);
-        checkPassword(user, currentPassword, attemptKey);
+        UserFactory.validateNewPassword(newPassword, user.getEmail(), user.getName());
+        checkPassword(user, currentPassword, clientIp);
         userRepository.save(user.withPasswordHash(passwordHasher.hash(newPassword)));
         sessionRepository.deleteByUserIdExcept(userId, tokenGenerator.hash(token));
     }
@@ -198,11 +207,8 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void deleteAccount(Long userId, String password, String clientIp) {
         User user = getUser(userId);
-        String attemptKey = attemptKey(user.getEmail(), clientIp);
-        if (attemptLimiter.isBlocked(attemptKey)) {
-            throw new TooManyLoginAttemptsException();
-        }
-        checkPassword(user, password, attemptKey);
+        checkNotBlocked(UserFactory.normalizeEmail(user.getEmail()), clientIp);
+        checkPassword(user, password, clientIp);
         userSkillRepository.deleteByUserId(userId);
         profileLinkRepository.deleteByUserId(userId);
         profileProjectRepository.deleteByUserId(userId);
@@ -213,17 +219,19 @@ public class AuthServiceImpl implements AuthService {
         userRepository.deleteById(userId);
     }
 
-    /** Como en el login: un fallo suma en el limitador y un acierto lo pone a cero. */
-    private void checkPassword(User user, String password, String attemptKey) {
+    /** Como en el login: un fallo suma en el limitador y un acierto pone a cero el correo. */
+    private void checkPassword(User user, String password, String clientIp) {
         if (password == null || !passwordHasher.matches(password, user.getPasswordHash())) {
-            attemptLimiter.recordFailure(attemptKey);
+            attemptLimiter.recordFailure(UserFactory.normalizeEmail(user.getEmail()), clientIp);
             throw new IncorrectPasswordException();
         }
-        attemptLimiter.reset(attemptKey);
+        attemptLimiter.reset(UserFactory.normalizeEmail(user.getEmail()));
     }
 
-    private static String attemptKey(String normalizedEmail, String clientIp) {
-        return normalizedEmail + "|" + clientIp;
+    private void checkNotBlocked(String normalizedEmail, String clientIp) {
+        attemptLimiter.blockedFor(normalizedEmail, clientIp).ifPresent(remaining -> {
+            throw new TooManyLoginAttemptsException(remaining);
+        });
     }
 
     private IssuedSession openSession(User user) {

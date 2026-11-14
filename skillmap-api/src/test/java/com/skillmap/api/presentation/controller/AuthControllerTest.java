@@ -1,9 +1,11 @@
 package com.skillmap.api.presentation.controller;
 
 import com.jayway.jsonpath.JsonPath;
+import com.skillmap.api.domain.exception.EmailAlreadyRegisteredException;
 import com.skillmap.api.domain.model.Session;
 import com.skillmap.api.domain.port.TokenGenerator;
 import com.skillmap.api.domain.repository.SessionRepository;
+import com.skillmap.api.domain.service.PasswordPolicy;
 import com.skillmap.api.infrastructure.persistence.SessionJpaRepository;
 import com.skillmap.api.infrastructure.persistence.UserJpaRepository;
 import com.skillmap.api.infrastructure.persistence.entity.SessionEntity;
@@ -32,10 +34,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasLength;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -102,7 +107,8 @@ class AuthControllerTest {
 
         mvc.perform(register("Otra", email.toUpperCase(), PASSWORD))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Ya existe una cuenta con ese correo."));
+                .andExpect(jsonPath("$.message").value(EmailAlreadyRegisteredException.MESSAGE))
+                .andExpect(content().string(not(containsString(email))));
     }
 
     @ParameterizedTest
@@ -114,6 +120,17 @@ class AuthControllerTest {
             "{\"name\":\"   \",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
             "{\"name\":\"%n\",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
             "{\"name\":\"%m\",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
+            "{\"name\":\"<script>\",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
+            "{\"name\":\"Ana\\u0000\",\"email\":\"ana@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana\\u0007@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana<x>@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana..b@test.local\",\"password\":\"Secreta-De-Prueba-987\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana@test.local\",\"password\":\"solo-letras-aqui\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana@test.local\",\"password\":\" Secreta-987\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana@test.local\",\"password\":\"Password123\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana1@test.local\",\"password\":\"ana1@test.local\"}",
+            "{\"name\":\"Ana\",\"email\":\"ana@test.local\",\"password\":12345678}",
+            "{\"name\":\"Ana\",\"email\":\"ana@test.local\",\"password\":\"Secreta-987\",\"admin\":true}",
             "{}"
     })
     void invalidRegistrationsReturn400WithMessage(String template) throws Exception {
@@ -130,9 +147,25 @@ class AuthControllerTest {
     }
 
     @Test
-    void passwordOfExactly8And72CharactersIsAccepted() throws Exception {
-        mvc.perform(register("Ana", uniqueEmail(), "12345678")).andExpect(status().isCreated());
-        mvc.perform(register("Ana", uniqueEmail(), "x".repeat(72))).andExpect(status().isCreated());
+    void passwordOf8And64CharactersIsAcceptedButNotMoreThan72Bytes() throws Exception {
+        mvc.perform(register("Ana", uniqueEmail(), "abcd123x")).andExpect(status().isCreated());
+        mvc.perform(register("Ana", uniqueEmail(), "a1" + "x".repeat(62))).andExpect(status().isCreated());
+        mvc.perform(register("Ana", uniqueEmail(), "a1" + "x".repeat(63)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(PasswordPolicy.LENGTH_MESSAGE));
+        // 37 caracteres, pero 73 bytes en UTF-8: BCrypt los cortaría, así que no se acepta.
+        mvc.perform(register("Ana", uniqueEmail(), "1" + "ñ".repeat(36)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(PasswordPolicy.BYTES_MESSAGE));
+    }
+
+    @Test
+    void nameAndEmailAreNormalized() throws Exception {
+        String email = uniqueEmail();
+        mvc.perform(register("  María   José O’Neil-Núñez ", "  " + email.toUpperCase() + " ", PASSWORD))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.user.name").value("María José O’Neil-Núñez"))
+                .andExpect(jsonPath("$.user.email").value(email));
     }
 
     // ---------- Login ----------
@@ -182,12 +215,150 @@ class AuthControllerTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.message").isString());
 
-        // Otra IP, u otro correo desde la misma IP, no están bloqueados.
+        // El bloqueo es del correo (también desde otra IP); otro correo desde la misma IP sigue pudiendo.
         mvc.perform(login(email, PASSWORD).with(request -> {
             request.setRemoteAddr("10.0.0.2");
             return request;
-        })).andExpect(status().isOk());
+        })).andExpect(status().isTooManyRequests());
         mvc.perform(login(uniqueEmail(), PASSWORD)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void blockedLoginSays429WithTheRemainingTime() throws Exception {
+        String email = uniqueEmail();
+        mvc.perform(register("Ana", email, PASSWORD)).andExpect(status().isCreated());
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(login(email, "incorrecta-" + i).with(fromIp("10.1.0.1"))).andExpect(status().isUnauthorized());
+        }
+        mvc.perform(login(email, PASSWORD))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string(HttpHeaders.RETRY_AFTER, matchesPattern("8[5-9][0-9]|900")))
+                .andExpect(jsonPath("$.message").value("Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos."));
+        // Un correo que no existe se bloquea igual: el bloqueo no delata qué cuentas hay.
+        String nobody = uniqueEmail();
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(login(nobody, "incorrecta-" + i).with(fromIp("10.1.0.1"))).andExpect(status().isUnauthorized());
+        }
+        mvc.perform(login(nobody, PASSWORD)).andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void manyFailuresFromOneIpBlockThatIpForEveryEmail() throws Exception {
+        String email = uniqueEmail();
+        mvc.perform(register("Ana", email, PASSWORD)).andExpect(status().isCreated());
+        for (int i = 0; i < 20; i++) {
+            mvc.perform(login(uniqueEmail(), "incorrecta").with(fromIp("10.9.9.9"))).andExpect(status().isUnauthorized());
+        }
+        mvc.perform(login(email, PASSWORD).with(fromIp("10.9.9.9"))).andExpect(status().isTooManyRequests());
+        mvc.perform(login(email, PASSWORD)).andExpect(status().isOk());
+    }
+
+    @Test
+    void aSuccessfulLoginResetsTheFailures() throws Exception {
+        String email = uniqueEmail();
+        mvc.perform(register("Ana", email, PASSWORD)).andExpect(status().isCreated());
+        for (int i = 0; i < 4; i++) {
+            mvc.perform(login(email, "incorrecta-" + i).with(fromIp("10.2.0.1"))).andExpect(status().isUnauthorized());
+        }
+        mvc.perform(login(email, PASSWORD)).andExpect(status().isOk());
+        for (int i = 0; i < 4; i++) {
+            mvc.perform(login(email, "incorrecta-" + i).with(fromIp("10.2.0.1"))).andExpect(status().isUnauthorized());
+        }
+        mvc.perform(login(email, PASSWORD)).andExpect(status().isOk());
+    }
+
+    @Test
+    void unknownEmailAndWrongPasswordTakeAboutTheSameTime() throws Exception {
+        String email = uniqueEmail();
+        mvc.perform(register("Ana", email, PASSWORD)).andExpect(status().isCreated());
+        // Calentamiento (JIT, primera carga de clases).
+        mvc.perform(login(uniqueEmail(), PASSWORD).with(fromIp("10.3.0.1")));
+        mvc.perform(login(email, "otra-clave-1").with(fromIp("10.3.0.1")));
+        long wrongPassword = 0;
+        long unknownEmail = 0;
+        for (int i = 0; i < 3; i++) {
+            long start = System.nanoTime();
+            mvc.perform(login(email, "otra-clave-x" + i).with(fromIp("10.3.0.1"))).andExpect(status().isUnauthorized());
+            wrongPassword += System.nanoTime() - start;
+            start = System.nanoTime();
+            mvc.perform(login(uniqueEmail(), "otra-clave-x" + i).with(fromIp("10.3.0.1")))
+                    .andExpect(status().isUnauthorized());
+            unknownEmail += System.nanoTime() - start;
+        }
+        // Las dos pasan por BCrypt de costo 12: ninguna es varias veces más rápida que la otra.
+        double ratio = (double) unknownEmail / wrongPassword;
+        assertThat(ratio).isBetween(0.5, 2.0);
+    }
+
+    @Test
+    void responsesNeverIncludeThePasswordHash() throws Exception {
+        String email = uniqueEmail();
+        String token = tokenOf(mvc.perform(register("Ana", email, PASSWORD))
+                .andExpect(content().string(not(containsString("$2a$")))));
+        mvc.perform(login(email, PASSWORD))
+                .andExpect(content().string(not(containsString("$2a$"))))
+                .andExpect(content().string(not(containsString("password"))));
+        mvc.perform(get("/api/auth/me").with(TestAuth.bearer(token)))
+                .andExpect(content().string(not(containsString("$2a$"))))
+                .andExpect(content().string(not(containsString("password"))));
+        mvc.perform(get("/api/auth/me/export").with(TestAuth.bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("$2a$"))))
+                .andExpect(content().string(not(containsString("passwordHash"))));
+    }
+
+    @Test
+    void newPasswordsAreHashedWithBcryptCost12() throws Exception {
+        String email = uniqueEmail();
+        mvc.perform(register("Ana", email, PASSWORD)).andExpect(status().isCreated());
+        assertThat(usersTable.findByEmail(email).orElseThrow().getPasswordHash()).startsWith("$2a$12$");
+    }
+
+    @Test
+    void securityHeadersAreOnEveryResponse() throws Exception {
+        for (var request : List.of(get("/api/health"), get("/api/auth/me"), get("/index.html"))) {
+            mvc.perform(request)
+                    .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                    .andExpect(header().string("X-Frame-Options", "DENY"))
+                    .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                    .andExpect(header().string("Content-Security-Policy", containsString("script-src 'self'")))
+                    .andExpect(header().string("Content-Security-Policy", containsString("frame-ancestors 'none'")));
+        }
+    }
+
+    @Test
+    void corsOnlyAllowsTheLocalDevOrigin() throws Exception {
+        mvc.perform(options("/api/auth/login").header(HttpHeaders.ORIGIN, "https://evil.example")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+                .andExpect(status().isForbidden());
+        mvc.perform(options("/api/auth/login").header(HttpHeaders.ORIGIN, "http://localhost:5500")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5500"));
+    }
+
+    @Test
+    void oversizedBodiesAreRejectedWithoutEchoingThem() throws Exception {
+        String huge = "{\"email\":\"" + "a".repeat(70 * 1024) + "\"}";
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(huge))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(content().string(not(containsString("aaaa"))));
+    }
+
+    @Test
+    void validationErrorsDoNotLeakThePasswordToTheLogs(CapturedOutput output) throws Exception {
+        String longPassword = "Larga-" + "9".repeat(200);
+        mvc.perform(register("Ana", uniqueEmail(), longPassword))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(not(containsString(longPassword))));
+        assertThat(output.getAll()).doesNotContain(longPassword);
+    }
+
+    private static org.springframework.test.web.servlet.request.RequestPostProcessor fromIp(String ip) {
+        return request -> {
+            request.setRemoteAddr(ip);
+            return request;
+        };
     }
 
     // ---------- Sesiones ----------
@@ -296,6 +467,8 @@ class AuthControllerTest {
         // Comprueba que el DEBUG de Spring sí está activo: si no, la prueba no probaría nada.
         assertThat(output.getAll()).contains("RegisterRequest[").contains("AuthResponse[");
         assertThat(output.getAll()).doesNotContain(PASSWORD);
+        // Ni el correo completo: los toString de peticiones y respuestas lo enmascaran ("u***@test.local").
+        assertThat(output.getAll()).doesNotContain(email);
         for (String token : issued) {
             assertThat(output.getAll()).doesNotContain(token);
         }

@@ -7,6 +7,7 @@ import com.skillmap.api.presentation.controller.AiController;
 import com.skillmap.api.presentation.controller.HealthController;
 import com.skillmap.api.presentation.exception.GlobalExceptionHandler;
 import com.skillmap.api.presentation.filter.RequestBodySizeFilter;
+import com.skillmap.api.presentation.filter.SecurityHeadersFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,7 +33,8 @@ import java.util.List;
  */
 @Configuration(proxyBeanMethods = false)
 @Profile(CloudConfig.PROFILE)
-@Import({GeminiJobSkillExtractor.class, AiController.class, HealthController.class, GlobalExceptionHandler.class})
+@Import({GeminiJobSkillExtractor.class, AiController.class, HealthController.class, GlobalExceptionHandler.class,
+        SecurityHeadersFilter.class})
 public class CloudConfig {
 
     public static final String PROFILE = "cloud";

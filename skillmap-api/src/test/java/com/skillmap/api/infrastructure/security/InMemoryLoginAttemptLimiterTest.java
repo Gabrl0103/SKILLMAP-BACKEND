@@ -12,41 +12,87 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InMemoryLoginAttemptLimiterTest {
 
+    private static final String IP = "127.0.0.1";
+
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-12T10:00:00Z"));
     private final InMemoryLoginAttemptLimiter limiter = new InMemoryLoginAttemptLimiter(clock);
 
     @Test
-    void blocksAfterFiveFailuresForTheSameKeyOnly() {
+    void blocksTheEmailForFifteenMinutesAfterFiveFailures() {
         for (int i = 0; i < 4; i++) {
-            limiter.recordFailure("ana@test.local|127.0.0.1");
+            limiter.recordFailure("ana@test.local", IP);
         }
-        assertThat(limiter.isBlocked("ana@test.local|127.0.0.1")).isFalse();
+        assertThat(limiter.blockedFor("ana@test.local", IP)).isEmpty();
 
-        limiter.recordFailure("ana@test.local|127.0.0.1");
-        assertThat(limiter.isBlocked("ana@test.local|127.0.0.1")).isTrue();
-        assertThat(limiter.isBlocked("ana@test.local|10.0.0.2")).isFalse();
-        assertThat(limiter.isBlocked("otro@test.local|127.0.0.1")).isFalse();
+        limiter.recordFailure("ana@test.local", IP);
+        assertThat(limiter.blockedFor("ana@test.local", IP)).contains(Duration.ofMinutes(15));
+        assertThat(limiter.blockedFor("otro@test.local", IP)).isEmpty();
+
+        clock.advance(Duration.ofMinutes(10));
+        assertThat(limiter.blockedFor("ana@test.local", IP)).contains(Duration.ofMinutes(5));
+        clock.advance(Duration.ofMinutes(5));
+        assertThat(limiter.blockedFor("ana@test.local", IP)).isEmpty();
     }
 
     @Test
-    void failuresOlderThanTenMinutesDoNotCount() {
-        for (int i = 0; i < 5; i++) {
-            limiter.recordFailure("k");
-        }
-        clock.advance(Duration.ofMinutes(10).plusSeconds(1));
-        assertThat(limiter.isBlocked("k")).isFalse();
+    void eachNewLockoutDoublesTheWaitUpTo24Hours() {
+        lockOut("ana@test.local");
+        assertThat(limiter.blockedFor("ana@test.local", IP)).contains(Duration.ofMinutes(15));
+        clock.advance(Duration.ofMinutes(15));
 
-        limiter.recordFailure("k");
-        assertThat(limiter.isBlocked("k")).isFalse();
+        lockOut("ana@test.local");
+        assertThat(limiter.blockedFor("ana@test.local", IP)).contains(Duration.ofMinutes(30));
+        clock.advance(Duration.ofMinutes(30));
+
+        lockOut("ana@test.local");
+        assertThat(limiter.blockedFor("ana@test.local", IP)).contains(Duration.ofMinutes(60));
+
+        assertThat(InMemoryLoginAttemptLimiter.lockDuration(20)).isEqualTo(Duration.ofHours(24));
     }
 
     @Test
-    void resetClearsTheFailures() {
-        for (int i = 0; i < 5; i++) {
-            limiter.recordFailure("k");
+    void resetOnSuccessStartsTheEmailFromZero() {
+        lockOut("ana@test.local");
+        clock.advance(Duration.ofMinutes(15));
+        for (int i = 0; i < 4; i++) {
+            limiter.recordFailure("ana@test.local", IP);
         }
-        limiter.reset("k");
-        assertThat(limiter.isBlocked("k")).isFalse();
+        limiter.reset("ana@test.local");
+
+        limiter.recordFailure("ana@test.local", IP);
+        assertThat(limiter.blockedFor("ana@test.local", IP)).isEmpty();
+        // El siguiente bloqueo vuelve a ser de 15 minutos: el acierto borró también los bloqueos anteriores.
+        lockOut("ana@test.local");
+        assertThat(limiter.blockedFor("ana@test.local", IP)).contains(Duration.ofMinutes(15));
+    }
+
+    @Test
+    void oldFailuresAreForgotten() {
+        for (int i = 0; i < 4; i++) {
+            limiter.recordFailure("ana@test.local", IP);
+        }
+        clock.advance(Duration.ofMinutes(61));
+        limiter.recordFailure("ana@test.local", IP);
+        assertThat(limiter.blockedFor("ana@test.local", IP)).isEmpty();
+    }
+
+    @Test
+    void theIpIsCappedAcrossManyEmailsAndASuccessDoesNotClearIt() {
+        for (int i = 0; i < 19; i++) {
+            limiter.recordFailure("user" + i + "@test.local", IP);
+        }
+        assertThat(limiter.blockedFor("nuevo@test.local", IP)).isEmpty();
+
+        limiter.recordFailure("user19@test.local", IP);
+        limiter.reset("user19@test.local");
+        assertThat(limiter.blockedFor("nuevo@test.local", IP)).contains(Duration.ofMinutes(15));
+        assertThat(limiter.blockedFor("nuevo@test.local", "10.0.0.2")).isEmpty();
+    }
+
+    private void lockOut(String email) {
+        for (int i = 0; i < 5; i++) {
+            limiter.recordFailure(email, IP);
+        }
     }
 
     private static final class MutableClock extends Clock {

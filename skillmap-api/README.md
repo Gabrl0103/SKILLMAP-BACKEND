@@ -55,11 +55,16 @@ Perfil `cloud` (Render): `application-cloud.properties`. Tests: `src/test/resour
 - **Datos**: H2 en modo archivo en `%APPDATA%\SkillMap\data` (`~/SkillMap/data` fuera de Windows). La carpeta
   conserva el nombre anterior de la app a propósito: quien ya la usaba no pierde sus datos.
   Se cambia con `--skillmap.home=...` o solo la base con `--skillmap.data-dir=...`.
-  Consola en `/h2-console` (JDBC URL: `jdbc:h2:file:<carpeta de datos>/skillmap`).
+  La consola `/h2-console` viene apagada (daba acceso a toda la base); para depurar:
+  `--spring.h2.console.enabled=true` (JDBC URL: `jdbc:h2:file:<carpeta de datos>/skillmap`).
 - **Puerto**: 8080; si está ocupado, el siguiente libre (hasta 8089) o uno al azar.
 - **Red**: escucha solo en `127.0.0.1` (no accesible desde la red local); `--server.address=0.0.0.0` para abrirlo.
 - **CORS**: la API acepta el mismo origen y `skillmap.cors.allowed-origins`
   (por defecto Live Server: `http://localhost:5500`, `http://127.0.0.1:5500`).
+- **Seguridad de cuentas**: contraseñas con BCrypt costo 12 (`skillmap.auth.bcrypt-cost`; las de costo anterior se
+  rehacen en el siguiente login), política de 8 a 64 caracteres (máx. 72 bytes) con letra y número, bloqueo creciente
+  tras 5 logins fallidos por correo (o 20 por IP) con 429 y `Retry-After`, JSON estricto (campos desconocidos: 400),
+  tope de 64 KB por cuerpo en `/api/**` y cabeceras CSP, `nosniff` y `X-Frame-Options` en todas las respuestas.
 - **Una sola instancia** por carpeta de datos: un segundo arranque abre la ventana de la primera y termina.
 - **Ofertas incluidas**: con la tabla de ofertas vacía, al arrancar se importan las de
   `src/main/resources/seed/job-postings.json` (sin llamar a ninguna API) y se recalcula la demanda.

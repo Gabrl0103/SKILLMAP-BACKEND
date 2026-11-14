@@ -2,6 +2,7 @@ package com.skillmap.api.presentation.exception;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.skillmap.api.domain.exception.AiDailyLimitException;
 import com.skillmap.api.domain.exception.AnalysisHistoryNotFoundException;
 import com.skillmap.api.domain.exception.AiInvalidResponseException;
@@ -36,13 +37,22 @@ import com.skillmap.api.domain.exception.SkillNotFoundException;
 import com.skillmap.api.domain.exception.TooManyLoginAttemptsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import java.lang.reflect.RecordComponent;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * Manejo global de excepciones: ningún controlador necesita try/catch propio.
@@ -54,6 +64,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String INVALID_BODY = "El cuerpo de la petición no es un JSON válido.";
+    private static final String UNKNOWN_FIELD = "La petición incluye un campo que no se admite.";
 
     @ExceptionHandler(SkillNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(SkillNotFoundException ex) {
@@ -157,9 +169,44 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponse(ex.getMessage()));
     }
 
+    /** 429 con el tiempo que falta en el mensaje (minutos) y en Retry-After (segundos). */
     @ExceptionHandler(TooManyLoginAttemptsException.class)
     public ResponseEntity<ErrorResponse> handleTooManyLoginAttempts(TooManyLoginAttemptsException ex) {
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new ErrorResponse(ex.getMessage()));
+        long seconds = Math.max(1, (ex.getRetryAfter().toMillis() + 999) / 1000); // hacia arriba
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    /**
+     * Bean Validation de un cuerpo (@Valid): el mensaje del primer campo que falla, en el orden en que el DTO declara
+     * sus campos (así la respuesta no depende del orden interno del validador). Los mensajes son fijos: nunca repiten
+     * el valor recibido.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidBody(MethodArgumentNotValidException ex) {
+        List<String> order = ex.getTarget() != null && ex.getTarget().getClass().isRecord()
+                ? Arrays.stream(ex.getTarget().getClass().getRecordComponents()).map(RecordComponent::getName).toList()
+                : List.of();
+        String message = ex.getFieldErrors().stream()
+                .min(Comparator.comparingInt((FieldError e) -> position(order, e.getField())))
+                .map(FieldError::getDefaultMessage)
+                .orElse(INVALID_BODY);
+        return ResponseEntity.badRequest().body(new ErrorResponse(message));
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidArguments(HandlerMethodValidationException ex) {
+        String message = ex.getAllErrors().stream().findFirst()
+                .map(error -> error.getDefaultMessage()).orElse(INVALID_BODY);
+        return ResponseEntity.badRequest().body(new ErrorResponse(message));
+    }
+
+    /** "tags[2]" cuenta como "tags"; un campo que no está en la lista va al final. */
+    private static int position(List<String> order, String field) {
+        String root = field.replaceAll("[\\[.].*$", "");
+        int index = order.indexOf(root);
+        return index < 0 ? Integer.MAX_VALUE : index;
     }
 
     /** Cabecera obligatoria ausente: se nombra la cabecera, nunca su valor. */
@@ -182,6 +229,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        // Campo que la API no conoce: sin nombrarlo (lo eligió el cliente).
+        if (ex.getCause() instanceof UnrecognizedPropertyException) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(UNKNOWN_FIELD));
+        }
         if (ex.getCause() instanceof MismatchedInputException mismatch && !mismatch.getPath().isEmpty()) {
             JsonMappingException.Reference field = mismatch.getPath().get(mismatch.getPath().size() - 1);
             if (field.getFieldName() != null) {
@@ -189,8 +240,7 @@ public class GlobalExceptionHandler {
                         "El campo '" + field.getFieldName() + "' no tiene un valor válido."));
             }
         }
-        return ResponseEntity.badRequest().body(new ErrorResponse(
-                "El cuerpo de la petición no es un JSON válido."));
+        return ResponseEntity.badRequest().body(new ErrorResponse(INVALID_BODY));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

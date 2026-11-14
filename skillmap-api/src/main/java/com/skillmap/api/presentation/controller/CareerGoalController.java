@@ -1,5 +1,6 @@
 package com.skillmap.api.presentation.controller;
 
+import jakarta.validation.Valid;
 import com.skillmap.api.application.service.CareerGoalService;
 import com.skillmap.api.application.service.CustomGoalService;
 import com.skillmap.api.application.service.ReadinessHistoryService;
@@ -87,7 +88,7 @@ public class CareerGoalController {
     @PostMapping("/custom")
     @ResponseStatus(HttpStatus.CREATED)
     public GoalResponse createCustom(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                     @RequestBody CustomGoalRequest request) {
+                                     @Valid @RequestBody CustomGoalRequest request) {
         return GoalResponseMapper.toResponse(
                 customGoals.create(userId, request.name(), request.description(), request.skillIds()));
     }
@@ -95,7 +96,7 @@ public class CareerGoalController {
     /** 403 si es un objetivo base; 404 si no es suyo; 400 / 409 como al crear. */
     @PutMapping("/custom/{id}")
     public GoalResponse updateCustom(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId, @PathVariable Long id,
-                                     @RequestBody CustomGoalRequest request) {
+                                     @Valid @RequestBody CustomGoalRequest request) {
         return GoalResponseMapper.toResponse(
                 customGoals.update(userId, id, request.name(), request.description(), request.skillIds()));
     }

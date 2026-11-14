@@ -1,5 +1,6 @@
 package com.skillmap.api.presentation.controller;
 
+import jakarta.validation.Valid;
 import com.skillmap.api.application.service.JobAnalyzerService;
 import com.skillmap.api.presentation.dto.AnalysisHistoryDetailResponse;
 import com.skillmap.api.presentation.dto.AnalysisHistoryItemResponse;
@@ -32,7 +33,7 @@ public class JobAnalyzerController {
 
     @PostMapping("/analyze")
     public JobAnalysisResponse analyze(@RequestAttribute(AuthenticationFilter.USER_ID) Long userId,
-                                       @RequestBody AnalyzeJobRequest request) {
+                                       @Valid @RequestBody AnalyzeJobRequest request) {
         return JobAnalysisResponseMapper.toResponse(analyzerService.analyze(userId, request.jobDescription()));
     }
 

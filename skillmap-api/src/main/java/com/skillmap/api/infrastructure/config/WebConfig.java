@@ -1,5 +1,6 @@
 package com.skillmap.api.infrastructure.config;
 
+import com.skillmap.api.presentation.filter.RequestBodySizeFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +26,8 @@ import java.util.List;
 @Configuration
 public class WebConfig {
 
+    static final int MAX_API_BODY_BYTES = 64 * 1024;
+
     private final List<String> allowedOrigins;
 
     public WebConfig(@Value("${skillmap.cors.allowed-origins:}") String[] allowedOrigins) {
@@ -47,6 +50,19 @@ public class WebConfig {
 
         FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>(new CorsFilter(source));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
+        return registration;
+    }
+
+    /**
+     * Tope general de cuerpo para toda la API: lo más grande que manda la app es una oferta de 8.000 caracteres
+     * (~32 KB en el peor caso en UTF-8 y escapada en JSON). /api/settings tiene además su propio tope de 4 KB.
+     */
+    @Bean
+    public FilterRegistrationBean<RequestBodySizeFilter> apiBodySizeFilter() {
+        FilterRegistrationBean<RequestBodySizeFilter> registration =
+                new FilterRegistrationBean<>(new RequestBodySizeFilter("/api", MAX_API_BODY_BYTES));
+        registration.setName("apiBodySizeFilter");
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 15);
         return registration;
     }
 }
