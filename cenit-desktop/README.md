@@ -63,11 +63,21 @@ Además:
   "Cerrar" y un enlace a la carpeta de logs. Si otra copia de Cenit (p. ej. la versión anterior, `dist\Cenit\Cenit.exe`
   de jpackage) usa los mismos datos, lo dice.
 - La ventana arranca en 1440×900 (mínimo 1100×700), ajustada al área útil si la pantalla es más pequeña.
+- **Recordatorios** (Ajustes > Recordatorios, por cuenta): meta semanal (por defecto sábado 6:00 pm), racha en riesgo
+  (domingo a la misma hora, con racha ≥ 1 y la meta sin cumplir) y meta cumplida (opcional). Como mucho uno por día,
+  nunca en las horas de silencio (9:00 pm–8:00 am por defecto) ni repetidos; si el equipo estaba apagado a la hora, sale
+  al abrir Cenit solo si es el mismo día. El scheduler corre en `main.js` (cuándo: `reminders.js`); el estado (faltan N,
+  racha) lo calcula la app con la lógica de "Tu ritmo" y se lo pasa por IPC. Clic en el aviso → Mi Ruta. Cerrar sesión
+  los detiene. No detecta "No molestar" (el aviso queda en el centro de actividades).
+- **Segundo plano** (Ajustes > Sistema, apagado por defecto): cerrar la ventana la oculta y Cenit queda en la bandeja
+  (Abrir Cenit, Pausar recordatorios, Salir). **Iniciar con Windows** registra `Cenit.exe --hidden` en la clave Run del
+  usuario (`com.cenit.desktop`); el desinstalador la borra (`build/installer.nsh`).
 
 ## Datos y logs
 
 - **Datos** (igual que antes, no se mueven): `%APPDATA%\SkillMap` — base H2 en `data\`, `config.properties` (key de
-  Gemini si se guardó desde Ajustes).
+  Gemini si se guardó desde Ajustes) y `desktop-settings.json` (recordatorios por cuenta, segundo plano e inicio con
+  Windows; sin tokens).
 - **Logs** en `%APPDATA%\SkillMap\logs`:
   - `skillmap.log`: el del backend (con rotación, como siempre).
   - `desktop.log`: arranques, puerto, tiempos, errores de Electron (rota a `desktop.1.log` al pasar de 5 MB).
@@ -88,3 +98,7 @@ cd cenit-desktop
 npm install
 npm start          # Electron sin empaquetar (con DevTools), usando cenit-desktop\backend
 ```
+
+Solo sin empaquetar: `CENIT_DEV_NOW=2026-11-14T17:58` (reloj simulado de los recordatorios), `CENIT_DEV_STATIC=<frontend>`
+(sirve el frontend del repo en vivo) y `CENIT_DEV_IGNORE_BLOCKED=1` (no mira si Windows tiene las notificaciones
+apagadas). Con `--inspect`, `global.cenitDevLastNotification` y `global.cenitDevTrayMenu` permiten simular clics.
