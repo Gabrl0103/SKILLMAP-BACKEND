@@ -6,15 +6,21 @@
 //   4. Carga http://127.0.0.1:PUERTO en la ventana.
 //   5. Al cerrar: cierra stdin (apagado ordenado, H2 guarda), espera y, si sigue vivo,
 //      taskkill /PID <pid> /T /F. No queda ningún java corriendo.
+// Recordatorios (meta semanal, racha en riesgo, meta cumplida): el scheduler corre aquí, en el proceso principal (ver
+// reminders.js y "Recordatorios" más abajo). Con "Seguir en segundo plano al cerrar" la ventana se oculta y Cenit queda
+// en la bandeja; "Salir" la cierra del todo. "Iniciar con Windows" la abre oculta (--hidden) en la bandeja.
 'use strict';
 
-const { app, BrowserWindow, Menu, shell, ipcMain, nativeTheme, screen, session, dialog } = require('electron');
+const {
+  app, BrowserWindow, Menu, Notification, Tray, shell, ipcMain, nativeTheme, powerMonitor, screen, session, dialog,
+} = require('electron');
 const { spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const http = require('node:http');
 const net = require('node:net');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const reminders = require('./reminders');
 
 // --- Configuración ------------------------------------------------------------------------
 const PREFERRED_PORTS = Array.from({ length: 10 }, (_, i) => 18080 + i);
@@ -51,6 +57,24 @@ const BACKEND_JAR = path.join(BACKEND_DIR, 'app', 'cenit-backend.jar');
 const BACKEND_CDS = path.join(BACKEND_DIR, 'app', 'cenit-backend.jsa');
 const LOADING_HTML = path.join(__dirname, 'loading.html');
 const ICON = path.join(__dirname, 'build', 'icon.ico');
+const APP_ID = 'com.cenit.desktop'; // = appId del instalador: nombre e icono de Cenit en las notificaciones
+// Ajustes de escritorio por cuenta (recordatorios) y del equipo (segundo plano, inicio con Windows). Sin tokens.
+const SETTINGS_FILE = path.join(HOME, 'desktop-settings.json');
+const REMINDER_TICK_MS = 60_000;
+const SNAPSHOT_TTL_MS = 15 * 60_000;
+const SNAPSHOT_TIMEOUT_MS = 20_000;
+const LOGIN_ARGS = ['--hidden'];
+// Abierta por "Iniciar con Windows": sin ventana, solo en la bandeja
+const startHidden = process.argv.includes('--hidden');
+// Solo en desarrollo: CENIT_DEV_NOW=2026-11-14T17:58 hace correr el reloj de los recordatorios desde esa hora (para
+// probarlos sin esperar al sábado), CENIT_DEV_STATIC=<frontend> sirve el frontend del repo en vivo y
+// CENIT_DEV_IGNORE_BLOCKED=1 no mira si Windows tiene las notificaciones apagadas. Con --inspect, el último aviso y el
+// menú de la bandeja quedan en global.cenitDevLastNotification y global.cenitDevTrayMenu (para simular clics).
+const clockOffset = (() => {
+  const at = isDev ? Date.parse(process.env.CENIT_DEV_NOW || '') : NaN;
+  return Number.isFinite(at) ? at - Date.now() : 0;
+})();
+const clock = () => new Date(Date.now() + clockOffset);
 
 // --- Log ----------------------------------------------------------------------------------
 fs.mkdirSync(LOGS_DIR, { recursive: true });
@@ -80,34 +104,51 @@ let pendingEnter = null;
 const ENTER_FALLBACK_MS = 2_000;
 const launchedAt = Date.now();
 let appShownLogged = false;
+// Segundo plano y recordatorios
+let settings = reminders.readSettings(SETTINGS_FILE);
+/** @type {Tray | null} */
+let tray = null;
+let sessionEnding = false; // Windows cierra sesión o se apaga: la ventana se cierra de verdad
+let remindersPaused = false; // "Pausar recordatorios" de la bandeja (hasta reanudar o cerrar Cenit)
+let reminderUser = null; // cuenta con sesión abierta en la app (la avisa js/recordatorios.js); null = sin recordatorios
+let snapshotCache = null; // { at, user, data }: último estado que mandó la app
+let snapshotSeq = 0;
+const pendingSnapshots = new Map();
+let reminderBusy = false;
+let reminderSoon = null;
+const liveNotifications = []; // las últimas, para que su clic siga funcionando desde el centro de actividades
 
 // --- Una sola instancia -------------------------------------------------------------------
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.show();
-    mainWindow.focus();
+  // Abrir Cenit.exe otra vez (también desde la bandeja o el menú Inicio) muestra la ventana; no crea otra
+  app.on('second-instance', (_event, argv) => {
+    if (!argv.includes('--hidden')) showMainWindow();
   });
   init();
 }
 
 function init() {
-  log(`--- Cenit ${app.getVersion()} (Electron ${process.versions.electron}) · datos en ${HOME}`);
-  app.setAppUserModelId('com.cenit.desktop'); // icono y agrupación propios en la barra de tareas
+  log(`--- Cenit ${app.getVersion()} (Electron ${process.versions.electron}) · datos en ${HOME}${startHidden ? ' · oculta (inicio con Windows)' : ''}`);
+  if (clockOffset) log(`(desarrollo) reloj de recordatorios desde ${clock().toString()}`);
+  app.setAppUserModelId(APP_ID); // icono y agrupación propios en la barra de tareas y en las notificaciones
   Menu.setApplicationMenu(null);
 
   app.whenReady().then(() => {
-    // Ningún permiso del navegador (cámara, notificaciones, ubicación...): la app no los usa.
+    // Ningún permiso del navegador (cámara, notificaciones, ubicación...): la app no los usa. Los recordatorios usan
+    // Notification del proceso principal, que no pasa por aquí.
     session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
       callback(permission === 'clipboard-sanitized-write');
     });
+    syncLoginItemSetting();
     createWindow();
+    syncTray();
     startBackend();
+    initReminders();
   });
 
+  // Con "Seguir en segundo plano" la ventana no se cierra (se oculta), así que esto solo pasa al salir de verdad
   app.on('window-all-closed', () => app.quit());
 
   app.on('before-quit', (event) => {
@@ -116,6 +157,8 @@ function init() {
     if (quitting) return;
     quitting = true;
     for (const win of BrowserWindow.getAllWindows()) win.hide();
+    tray?.destroy(); // sin icono fantasma en la bandeja mientras se apaga el backend
+    tray = null;
     stopBackend().finally(() => {
       shutdownDone = true;
       log('Cenit cerrada');
@@ -125,7 +168,7 @@ function init() {
   });
 
   // Apagado o cierre de sesión de Windows: no hay tiempo para esperar.
-  app.on('session-end', () => killBackendNow());
+  app.on('session-end', () => { sessionEnding = true; killBackendNow(); });
   process.on('exit', () => killBackendNow());
 
   ipcMain.on('cenit:retry', (event) => {
@@ -152,8 +195,10 @@ function init() {
     // El fondo de la ventana sigue al tema: sin destello de otro color al cargar páginas
     if (next.theme !== uiPrefs.theme) mainWindow?.setBackgroundColor(windowBackground(next.theme));
     if (next.lang !== uiPrefs.lang || next.theme !== uiPrefs.theme || next.motion !== uiPrefs.motion) {
+      const langChanged = next.lang !== uiPrefs.lang;
       uiPrefs = next;
       try { fs.writeFileSync(PREFS_FILE, JSON.stringify(uiPrefs)); } catch { /* solo afecta a la pantalla de carga */ }
+      if (langChanged) updateTrayMenu();
     }
   });
   // Exportar CV: en Electron window.print() no sirve (sin vista previa ni "Guardar como PDF"). El frontend pide aquí
@@ -210,6 +255,286 @@ function init() {
     }
   });
   ipcMain.handle('cenit:version', (event) => (isAppUrl(event.senderFrame?.url) ? app.getVersion() : ''));
+
+  // Ajustes > Recordatorios y Sistema (js/recordatorios.js). Todo se valida aquí (reminders.js) antes de guardarse.
+  ipcMain.handle('cenit:desktop-settings', (event) => (isAppUrl(event.senderFrame?.url) ? desktopState() : null));
+  ipcMain.handle('cenit:set-system', (event, patch) => {
+    if (!isAppUrl(event.senderFrame?.url) || !patch || typeof patch !== 'object') return { ok: false, error: 'forbidden' };
+    const next = reminders.cleanSystem({ ...settings.system, ...patch });
+    if (next.openAtLogin !== settings.system.openAtLogin && !applyLoginItem(next.openAtLogin)) {
+      return { ok: false, error: 'login-item', state: desktopState() };
+    }
+    settings.system = next;
+    syncTray();
+    return { ok: saveSettings(), state: desktopState() };
+  });
+  ipcMain.handle('cenit:set-reminders', (event, patch) => {
+    if (!isAppUrl(event.senderFrame?.url) || !reminderUser) return { ok: false, error: 'forbidden' };
+    const account = reminders.accountOf(settings, reminderUser);
+    account.reminders = reminders.patchReminders(account.reminders, patch);
+    const ok = saveSettings();
+    scheduleReminderCheck(); // por si la nueva hora ya pasó hoy
+    return { ok, state: desktopState() };
+  });
+  ipcMain.handle('cenit:reminder-test', async (event) => {
+    if (!isAppUrl(event.senderFrame?.url) || !reminderUser) return { ok: false, error: 'forbidden' };
+    return testReminder();
+  });
+  // Entra o sale una cuenta (también al cerrar sesión): los recordatorios son solo de la cuenta abierta
+  ipcMain.on('cenit:reminder-user', (event, id) => {
+    if (!isAppUrl(event.senderFrame?.url)) return;
+    const next = reminders.isAccountId(id) ? id : null;
+    if (next === reminderUser) return;
+    reminderUser = next;
+    snapshotCache = null;
+    log(next ? 'Recordatorios: sesión abierta' : 'Recordatorios: sin sesión (detenidos)');
+    if (next) scheduleReminderCheck(5_000); // deja que la app termine de cargar Mi Ruta
+  });
+  // Cambió el avance o la meta: el estado guardado ya no vale (y la meta pudo cumplirse)
+  ipcMain.on('cenit:reminder-changed', (event) => {
+    if (!isAppUrl(event.senderFrame?.url)) return;
+    snapshotCache = null;
+    scheduleReminderCheck(3_000);
+  });
+  ipcMain.on('cenit:reminder-snapshot', (event, id, data) => {
+    if (!isAppUrl(event.senderFrame?.url)) return;
+    const done = pendingSnapshots.get(id);
+    if (done) done(reminders.cleanSnapshot(data));
+  });
+}
+
+// --- Recordatorios ------------------------------------------------------------------------
+// Scheduler en el proceso principal: un intervalo de 60 s (más una revisión al volver de suspensión, al desbloquear, al
+// entrar una cuenta y al cambiar el avance). Cada vuelta pregunta a reminders.dueTypes si algo puede salir ya; solo
+// entonces pide el estado a la app (cacheado 15 min o hasta el próximo cambio). Así no duplica la lógica de las rachas
+// (vive en el renderer, con su registro en localStorage), sigue funcionando con la ventana oculta en la bandeja y no
+// hace nada sin backend listo ni sesión abierta.
+
+function initReminders() {
+  setInterval(() => checkReminders(), REMINDER_TICK_MS);
+  powerMonitor.on('resume', () => scheduleReminderCheck(10_000));
+  powerMonitor.on('unlock-screen', () => scheduleReminderCheck(3_000));
+}
+
+function scheduleReminderCheck(ms = 1_000) {
+  clearTimeout(reminderSoon);
+  reminderSoon = setTimeout(() => checkReminders(), ms);
+}
+
+function saveSettings() {
+  try {
+    reminders.writeSettings(SETTINGS_FILE, settings);
+    return true;
+  } catch (err) {
+    log(`No se pudieron guardar los ajustes de escritorio: ${err.message}`);
+    return false;
+  }
+}
+
+function desktopState() {
+  const account = reminderUser ? settings.accounts[reminderUser] : null;
+  return {
+    system: { ...settings.system },
+    reminders: account ? account.reminders : reminders.cleanReminders(null),
+    paused: remindersPaused,
+  };
+}
+
+/** Pide a la app (js/recordatorios.js) su estado: meta, avance, racha y textos. null si no responde o no hay sesión. */
+function requestSnapshot() {
+  const wc = mainWindow?.webContents;
+  if (!wc || !isAppUrl(wc.getURL())) return Promise.resolve(null);
+  const id = ++snapshotSeq;
+  return new Promise((resolve) => {
+    const finish = (data) => {
+      clearTimeout(timer);
+      pendingSnapshots.delete(id);
+      resolve(data);
+    };
+    const timer = setTimeout(() => finish(null), SNAPSHOT_TIMEOUT_MS);
+    pendingSnapshots.set(id, finish);
+    wc.send('cenit:reminder-request', id);
+  });
+}
+
+async function currentSnapshot() {
+  const user = reminderUser;
+  if (snapshotCache && snapshotCache.user === user && Date.now() - snapshotCache.at < SNAPSHOT_TTL_MS) return snapshotCache.data;
+  const data = await requestSnapshot();
+  if (!data || data.userId !== user || user !== reminderUser) return null;
+  snapshotCache = { at: Date.now(), user, data };
+  return data;
+}
+
+async function checkReminders() {
+  if (reminderBusy || quitting || remindersPaused || !appOrigin || !reminderUser) return;
+  const user = reminderUser;
+  const account = settings.accounts[user];
+  const config = account ? account.reminders : reminders.cleanReminders(null);
+  const types = reminders.dueTypes(clock(), config, account ? account.sent : {});
+  if (!types.length) return;
+  reminderBusy = true;
+  try {
+    const snap = await currentSnapshot();
+    if (!snap || user !== reminderUser || remindersPaused || quitting) return;
+    const type = reminders.pickReminder(types, snap);
+    if (!type) return;
+    const blocked = notificationsBlocked();
+    if (blocked) {
+      log(`Recordatorio (${type}) sin mostrar: notificaciones bloqueadas (${blocked})`);
+      return;
+    }
+    const target = reminders.accountOf(settings, user);
+    target.sent = reminders.markSent(target.sent, type, clock());
+    saveSettings();
+    showReminder(snap.texts[type], type);
+  } catch (err) {
+    log(`Recordatorios: ${err.message}`);
+  } finally {
+    reminderBusy = false;
+  }
+}
+
+/** Muestra la notificación. El clic abre Cenit en Mi Ruta. Resuelve 'shown' | 'failed' | 'unknown' (sin respuesta). */
+function showReminder({ title, body }, type) {
+  return new Promise((resolve) => {
+    if (!Notification.isSupported()) { resolve('failed'); return; }
+    const notification = new Notification({ title, body, icon: ICON });
+    liveNotifications.push(notification);
+    if (liveNotifications.length > 5) liveNotifications.shift();
+    let timer = setTimeout(() => resolve('unknown'), 4_000);
+    // Windows emite 'show' al aceptar el aviso y, si su configuración lo bloquea, 'failed' enseguida: se espera un poco
+    notification.on('show', () => {
+      log(`Recordatorio entregado a Windows (${type})`);
+      clearTimeout(timer);
+      timer = setTimeout(() => resolve('shown'), 800);
+    });
+    notification.on('failed', (_event, error) => {
+      log(`El recordatorio no se pudo mostrar (${type}): ${error}`);
+      clearTimeout(timer);
+      resolve('failed');
+    });
+    notification.on('click', () => {
+      log(`Recordatorio abierto (${type})`);
+      openRuta();
+    });
+    notification.show();
+    if (isDev) global.cenitDevLastNotification = notification; // pruebas: simular el clic desde --inspect
+  });
+}
+
+// "Probar recordatorio" (Ajustes): el aviso que tocaría con el estado de ahora, sin contar para el máximo diario
+async function testReminder() {
+  const blocked = notificationsBlocked();
+  if (blocked) return { ok: false, blocked };
+  snapshotCache = null;
+  const snap = await currentSnapshot();
+  if (!snap) return { ok: false, error: 'no-data' };
+  const type = snap.met ? 'met' : snap.streak >= 1 ? 'streak' : 'weekly';
+  const result = await showReminder(snap.texts[type], `${type}, prueba`);
+  return result === 'failed' ? { ok: false, error: 'failed' } : { ok: true };
+}
+
+/**
+ * ¿Windows tiene bloqueadas las notificaciones? 'system' (todas apagadas), 'app' (las de Cenit) o null. No detecta
+ * "No molestar"/Asistente de concentración: ahí los avisos llegan igual al centro de actividades, sin mostrarse.
+ */
+function notificationsBlocked() {
+  if (!Notification.isSupported()) return 'unsupported';
+  if (process.platform !== 'win32' || (isDev && process.env.CENIT_DEV_IGNORE_BLOCKED === '1')) return null;
+  const dword = (key, value) => {
+    try {
+      const out = spawnSync('reg', ['query', key, '/v', value], { windowsHide: true, encoding: 'utf8', timeout: 5_000 }).stdout || '';
+      const match = /REG_DWORD\s+0x([0-9a-f]+)/i.exec(out);
+      return match ? parseInt(match[1], 16) : null;
+    } catch { return null; }
+  };
+  const base = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion';
+  if (dword(`${base}\\PushNotifications`, 'ToastEnabled') === 0) return 'system';
+  if (dword(`${base}\\Notifications\\Settings\\${APP_ID}`, 'Enabled') === 0) return 'app';
+  return null;
+}
+
+function showMainWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function openRuta() {
+  showMainWindow();
+  const wc = mainWindow?.webContents;
+  if (wc && isAppUrl(wc.getURL())) wc.send('cenit:open-ruta');
+}
+
+// --- Bandeja e inicio con Windows ---------------------------------------------------------
+
+// Hay bandeja con "Seguir en segundo plano" activo o si Cenit se abrió oculta al iniciar Windows
+function syncTray() {
+  if (settings.system.background || startHidden) {
+    if (!tray) {
+      tray = new Tray(ICON);
+      tray.setToolTip('Cenit');
+      tray.on('click', showMainWindow);
+      tray.on('double-click', showMainWindow);
+    }
+    updateTrayMenu();
+  } else if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+}
+
+function updateTrayMenu() {
+  if (!tray) return;
+  const es = uiPrefs.lang !== 'en';
+  const menu = Menu.buildFromTemplate([
+    { label: es ? 'Abrir Cenit' : 'Open Cenit', click: showMainWindow },
+    {
+      label: es ? 'Pausar recordatorios' : 'Pause reminders',
+      type: 'checkbox',
+      checked: remindersPaused,
+      click: (item) => {
+        remindersPaused = item.checked;
+        log(remindersPaused ? 'Recordatorios en pausa' : 'Recordatorios reanudados');
+        if (!remindersPaused) scheduleReminderCheck();
+      },
+    },
+    { type: 'separator' },
+    { label: es ? 'Salir' : 'Quit', click: () => app.quit() },
+  ]);
+  tray.setContextMenu(menu);
+  if (isDev) global.cenitDevTrayMenu = menu; // pruebas: usar el menú desde --inspect
+}
+
+// Iniciar con Windows: clave Run del usuario (nombre = APP_ID), con --hidden. Solo en la app instalada.
+function applyLoginItem(enabled) {
+  if (!app.isPackaged) {
+    log(`(desarrollo) Iniciar con Windows ${enabled ? 'activado' : 'desactivado'} sin registrar`);
+    return true;
+  }
+  try {
+    app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath, args: LOGIN_ARGS });
+    log(`Iniciar con Windows ${enabled ? 'activado' : 'desactivado'}`);
+    return true;
+  } catch (err) {
+    log(`No se pudo cambiar Iniciar con Windows: ${err.message}`);
+    return false;
+  }
+}
+
+// Lo que diga Windows manda (el usuario pudo desactivarlo en el Administrador de tareas)
+function syncLoginItemSetting() {
+  if (!app.isPackaged) return;
+  try {
+    const item = app.getLoginItemSettings({ path: process.execPath, args: LOGIN_ARGS });
+    const enabled = Boolean(item.openAtLogin && item.executableWillLaunchAtLogin !== false);
+    if (enabled !== settings.system.openAtLogin) {
+      settings.system = { ...settings.system, openAtLogin: enabled };
+      saveSettings();
+    }
+  } catch { /* se queda lo guardado */ }
 }
 
 /** <nombre>.json sin caracteres que Windows no admite en un nombre de archivo. */
@@ -254,7 +579,19 @@ function createWindow() {
     },
   });
   if (width >= area.width || height >= area.height) mainWindow.maximize();
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  // Abierta al iniciar Windows: la ventana existe (la app carga y puede recordar) pero no se muestra hasta abrirla
+  mainWindow.once('ready-to-show', () => { if (!startHidden) mainWindow.show(); });
+  // "Seguir en segundo plano al cerrar": cerrar oculta la ventana y Cenit sigue en la bandeja. Salir (bandeja), apagar
+  // o cerrar sesión de Windows sí la cierran. Con la opción apagada, cerrar cierra todo como siempre.
+  mainWindow.on('query-session-end', () => { sessionEnding = true; });
+  mainWindow.on('session-end', () => { sessionEnding = true; killBackendNow(); });
+  mainWindow.on('close', (event) => {
+    if (quitting || sessionEnding || !settings.system.background) return;
+    event.preventDefault();
+    mainWindow.hide();
+    syncTray();
+    log('Ventana cerrada: Cenit sigue en la bandeja');
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
   // El título es siempre "Cenit" (no el de cada página).
   mainWindow.on('page-title-updated', (event) => event.preventDefault());
@@ -466,6 +803,11 @@ function launchBackend(port, generation) {
     `--skillmap.home=${HOME}`,
     '--spring.jpa.show-sql=false',
   ];
+  const devStatic = isDev ? process.env.CENIT_DEV_STATIC : '';
+  if (devStatic) {
+    args.push(`--spring.web.resources.static-locations=file:${path.resolve(devStatic).replace(/\\/g, '/')}/`,
+      '--spring.web.resources.cache.period=0');
+  }
   const env = { ...process.env };
   // Opciones de Java del sistema que podrían romper el arranque (ej. un agente o -Xmx raro).
   for (const name of ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS', 'CLASSPATH', 'ELECTRON_RUN_AS_NODE']) {

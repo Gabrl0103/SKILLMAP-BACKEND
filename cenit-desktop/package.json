@@ -28,6 +28,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "reminders.js",
       "loading.html",
       "fonts/plus-jakarta-sans-latin.woff2",
       "build/icon.ico",
